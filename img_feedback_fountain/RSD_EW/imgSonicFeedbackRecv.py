@@ -220,11 +220,12 @@ class Receiver:
         n2 = 20
         if self.drop_id >= n1 and self.recv_done_flag==False:
             if (self.drop_id - n1)%n2==0:
-                # 用于添加反馈历史数据
-                self.chunk_process = self.glass.getProcess() 
-                self.glass.glass_process_history.append(self.chunk_process) # 添加反馈历史数据，用于droplet参数，正确译码
+                process = self.glass.getProcess()
+                # 用于添加反馈历史数据, 用于droplet参数，正确译码
+                self.chunk_process = process[0]
+                self.glass.glass_process_history.append(self.chunk_process)
                 # 用于实际反馈
-                process_bitmap = self.glass.getProcess_bits()
+                process_bitmap = process[1]
                 process_bits = bitarray.bitarray(process_bitmap)
                 self.process_bytes = process_bits.tobytes()
 

@@ -468,20 +468,15 @@ class Glass:
     def getProcess(self):
         idx = 0
         process = []
-        for chunk in self.chunks:
-            if chunk is None:
-                process.append(idx)
-            idx += 1
-        return process
-    
-    def getProcess_bits(self):
         process_bits = []
         for chunk in self.chunks:
             if chunk is None:
+                process.append(idx)
                 process_bits.append(0)
             else:
                 process_bits.append(1)
-        return process_bits
+            idx += 1
+        return [process, process_bits]
 
 
 
