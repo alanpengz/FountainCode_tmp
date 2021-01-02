@@ -18,7 +18,7 @@ import pandas as pd
 
 
 LIB_PATH = os.path.dirname(__file__)
-IMG_PATH = os.path.join(LIB_PATH, 'lena.bmp')
+IMG_PATH = os.path.join(LIB_PATH, './imgSend/lena.bmp')
 
 logging.basicConfig(level=logging.INFO, 
         format="%(asctime)s %(filename)s:%(lineno)s %(levelname)s-%(message)s",)
@@ -119,12 +119,18 @@ class Sender:
         self.pack_send_num = 0 # 发的总包数
         self.dropid_save = []
         self.throughout_put = []
+        self.send_flag = [0]*115
 
+        # with open(self.imgsend, 'rb') as f:
+        #     self.m = f.read()
+        
         temp_file = './imgSend/lena.png'
         rgb_list = ['r', 'g', 'b']
         temp_file_list = [temp_file + '_' + ii for ii in rgb_list]
         self.m = self.compose_rgb(temp_file_list)
+
         self.chunk_num = ceil(len(self.m)/self.chunk_size)
+        print('chunk_nums: ', self.chunk_num)
 
     def compose_rgb(self, file_list, each_chunk_bit_size=4000):                          # each_chunk_bit_size=2500, len(m_byte)不等于240000/8=30000
         '''                                                                             # each_chunk_bit_size=4000，m_byte=30000，fountain_chunk_size设置成能被30000整除，每个块长度一样，方便异或
@@ -157,80 +163,51 @@ class Sender:
         start = self.chunk_size * num
         end = min(self.chunk_size * (num+1), len(self.m))
         chunk_id_bits = format(int(num), "016b")
-
         return bitarray.bitarray(chunk_id_bits).tobytes() + self.m[start:end]
 
     def send_drops_spi(self):
         self.creatTimer()
+        self.creat_detect_feedback_Timer()
         while True:
-            if(self.feedback_ack==False):
-                # 发送一帧补0到239字节发送
-                a_drop = self.chunk_data(self.dropid)
-                sendbytes = send_check(a_drop)
-                sendbytearray = bytearray(sendbytes)
-                datalen = len(sendbytearray)
-                while(datalen < 239):
-                    sendbytearray.insert(datalen, 0)
-                    datalen += 1
+            idx = 0
+            for flag in self.send_flag:
+                if flag==0:
+                    a_drop = self.chunk_data(idx)
+                    sendbytes = send_check(a_drop)
+                    sendbytearray = bytearray(sendbytes)
+                    datalen = len(sendbytearray)
+                    while(datalen < 239):
+                        sendbytearray.insert(datalen, 0)
+                        datalen += 1
 
-                self.spiSend.xfer2(sendbytearray)
-                logging.info('chunk_id: '+ str(self.dropid) + ' send done, chunk size: ' + str(self.chunk_size) + ', frame size: ' + str(len(sendbytes)))
-                time.sleep(0.1)
-                self.dropid += 1
-                self.pack_send_num += 1
+                    self.spiSend.xfer2(sendbytearray)
+                    self.send_flag[idx]=1
+                    self.pack_send_num += 1
+                    logging.info('chunk_id: '+ str(idx) + ' feedback_resend done, chunk size: ' + str(self.chunk_size) + ', frame size: ' + str(len(sendbytes)))
+                    time.sleep(0.1)
+                    idx += 1
 
-                # 没收到进度反馈时继续按顺序发
-                if(self.dropid >= self.chunk_num):
-                    logging.info('============一轮发送完成===========')
-                    self.dropid = 0
-            
-            elif(self.feedback_ack):
-                # 没收到新进度反馈时继续按之前进度顺序发
-                while self.old_feedback_num == self.feedback_num - 1:
-                    for idx in self.chunk_process:
-                        a_drop = self.chunk_data(idx)
-                        sendbytes = send_check(a_drop)
-                        sendbytearray = bytearray(sendbytes)
-                        datalen = len(sendbytearray)
-                        while(datalen < 239):
-                            sendbytearray.insert(datalen, 0)
-                            datalen += 1
+                if(self.recvdone_ack):
+                    break
 
-                        self.spiSend.xfer2(sendbytearray)
-                        self.pack_send_num += 1
-                        logging.info('============缺失块重发===========')
-                        logging.info('chunk_id: '+ str(idx) + ' resend done, chunk size: ' + str(self.chunk_size) + ', frame size: ' + str(len(sendbytes)))
-                        time.sleep(0.1)
-                self.old_feedback_num += 1
+            logging.info('============Send done===========')
+            logging.info('Send Packets used: ' + str(self.pack_send_num))
+            logging.info('Feedback num: ' + str(self.feedback_num))
 
-            # 检测水声反馈
-            self.feedback_detect()
-            if(self.recvdone_ack):
-                logging.info('============Send done===========')
-                logging.info('Send Packets used: ' + str(self.pack_send_num))
-                logging.info('Feedback num: ' + str(self.feedback_num))
-
-                # 记录吞吐量
-                self.cal_ttl()
-                print('dropid history: ', self.dropid_save, len(self.dropid_save))
-                print('drops_per_sec: ', self.throughout_put, len(self.throughout_put))
-                res = pd.DataFrame({'dropid_history':self.dropid_save,  
-                'drops_per_sec':self.throughout_put
-                })
-                res.to_csv(('data_save/Send_ttl'+ '_' + time.asctime().replace(' ', '_').replace(':', '_') + '.csv'),  mode='a')
-                break
-            # if(self.feedback_ack):
-            #     print('Progress Received: ', self.chunk_process)
-            #     print('Progress num: ', len(self.chunk_process))
-            #     self.feedback_ack = False
-                # # 接收完成
-                # if self.chunk_process==[]:
-                #     break
+            # 记录吞吐量
+            self.cal_ttl()
+            print('dropid history: ', self.dropid_save, len(self.dropid_save))
+            print('drops_per_sec: ', self.throughout_put, len(self.throughout_put))
+            res = pd.DataFrame({'dropid_history':self.dropid_save,  
+            'drops_per_sec':self.throughout_put
+            })
+            res.to_csv(('data_save/Send_ttl'+ '_' + time.asctime().replace(' ', '_').replace(':', '_') + '.csv'),  mode='a')
+            break
     
     # 定时器线程每隔1s记录发包数,即吞吐量
     def save_throughout_put(self):
         if(self.recvdone_ack==False):
-            self.dropid_save.append(self.dropid)
+            self.dropid_save.append(self.pack_send_num)
             self.creatTimer()
 
     def creatTimer(self):
@@ -247,42 +224,53 @@ class Sender:
             else:
                 self.throughout_put.append(self.dropid_save[idx]-self.dropid_save[idx-1])
             idx += 1
-
-    # 检测反馈
-    def feedback_detect(self):   
-        size = self.port.in_waiting
-        if size>0:
-            data_rec = self.port.read_all()
-            # data_str = str(data_rec)
-            # idx = data_str.find('Received String: ')
-            # if idx>=0:
-            #     msg_str = data_str[idx+17:]
-            #     msg_bytes = bytes(msg_str, encoding="utf-8")
-
-            msg_bytes = data_rec
-            # 接收完成
-            if msg_bytes[:2] == b'#$':
-                self.recvdone_ack = True
-            # 进度包    
-            elif msg_bytes[:2] == b'$#':
-                self.feedback_ack = True
-                self.chunk_process = self.get_process_from_feedback(msg_bytes)
-                self.feedback_num += 1
     
-
-     # 从反馈中获取进度
+    # 从反馈中获取进度
     def get_process_from_feedback(self, rec_bytes):
         process = []
         chunk_id = 0
         process_bits = bitarray.bitarray(endian='big')
         process_bits.frombytes(rec_bytes[2:])
-        print(process_bits)
-        print(len(process_bits))
-        while chunk_id < min(self.chunk_num, len(process_bits)):
+        while chunk_id < self.chunk_num:
             if(process_bits[chunk_id]==False):
                 process.append(chunk_id)
             chunk_id += 1
+        for idx in process:
+            self.send_flag[idx]=0
         return process
+
+    # 检测反馈
+    def feedback_detect(self):   
+        usetime = 0
+        data_rec = b''
+        size = self.port.in_waiting
+        if size>0:
+            start = time.time()
+            while(usetime < 0.05):
+                data_rec += self.port.read_all()
+                now = time.time()
+                usetime = now - start
+            data_str = str(data_rec)
+            idx = data_str.find('Received String: ')
+            if idx>=0:
+                msg_str = data_str[idx+17:]
+                msg_bytes = bytes(msg_str, encoding="utf-8")
+
+            # msg_bytes = data_rec
+                # 接收完成
+                if msg_bytes[:2] == b'#$':
+                    self.recvdone_ack = True
+                # 进度包    
+                elif msg_bytes[:2] == b'$#':
+                    self.feedback_ack = True
+                    self.chunk_process = sender.get_process_from_feedback(msg_bytes)
+                    self.feedback_num += 1
+        self.creat_detect_feedback_Timer()
+
+    def creat_detect_feedback_Timer(self):
+        if self.recvdone_ack==False:
+            t = threading.Timer(0.001, self.feedback_detect)
+            t.start()
 
 if __name__ == '__main__':
     sender = Sender(bus=0, device=0, port='/dev/ttyUSB0', baudrate=115200, timeout=1)

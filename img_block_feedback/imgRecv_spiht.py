@@ -87,7 +87,7 @@ class Receiver:
         self.drop_id = 0
         self.data_rec = ""
         self.recv_dir = os.path.join(RECV_PATH, time.asctime().replace(' ', '_').replace(':', '_'))
-        self.entries = [None]*915
+        self.entries = [None]*115
         self.chunks = []
 
         self.pack_id = 0
@@ -110,7 +110,6 @@ class Receiver:
             if self.timer_start==False:
                 self.t0 = time.time()
                 self.creat_ttl_Timer()
-                self.creat_feedback_Timer()
                 self.timer_start = True
 
             self.pack_id += 1
@@ -170,6 +169,13 @@ class Receiver:
             })
             res.to_csv(('data_save/Send_ttl'+ '_' + time.asctime().replace(' ', '_').replace(':', '_') + '.csv'),  mode='a')
             self.send_recv_done_ack()
+        
+        # 进度反馈
+        n1 = round(0.8*115)
+        n2 = 20
+        if self.drop_id >= n1 and self.recv_done_flag==False:
+            if (self.drop_id - n1)%n2==0:
+                self.send_feedback()
 
     def get_bits(self):
         bitarray_factory = bitarray.bitarray(endian='big')
@@ -211,10 +217,10 @@ class Receiver:
 
     def send_recv_done_ack(self):
         if self.recv_done_flag:
-            M = b'M\r\n'
-            self.port.write(M)
-            self.port.flushOutput()
-            time.sleep(0.01)
+            # M = b'M\r\n'
+            # self.port.write(M)
+            # self.port.flushOutput()
+            # time.sleep(0.01)
 
             ack = b'#$\r\n'
             acksend = bytearray(ack)
@@ -229,18 +235,12 @@ class Receiver:
         process_bits = bitarray.bitarray(process_bitmap)
         process_bytes = process_bits.tobytes()
         fb = b'$#' + process_bytes + b'\r\n'
-        M = b'M\r\n'
-        self.port.write(M)
-        self.port.flushOutput()
-        time.sleep(0.01)
+        # M = b'M\r\n'
+        # self.port.write(M)
+        # self.port.flushOutput()
+        # time.sleep(0.01)
         self.port.write(fb)
         self.port.flushOutput()
-        self.creat_feedback_Timer()
-
-    def creat_feedback_Timer(self):
-        if(self.recv_done_flag==False):
-            t = threading.Timer(2, self.send_feedback)
-            t.start()
 
     def getProcess_bits(self):
         process_bits = []

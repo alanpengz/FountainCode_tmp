@@ -250,21 +250,21 @@ class Sender:
                 data_rec += self.port.read_all()
                 now = time.time()
                 usetime = now - start
-            # data_str = str(data_rec)
-            # idx = data_str.find('Received String: ')
-            # if idx>=0:
-            #     msg_str = data_str[idx+17:]
-            #     msg_bytes = bytes(msg_str, encoding="utf-8")
+            data_str = str(data_rec)
+            idx = data_str.find('Received String: ')
+            if idx>=0:
+                msg_str = data_str[idx+17:]
+                msg_bytes = bytes(msg_str, encoding="utf-8")
 
-            msg_bytes = data_rec
-            # 接收完成
-            if msg_bytes[:2] == b'#$':
-                self.recvdone_ack = True
-            # 进度包    
-            elif msg_bytes[:2] == b'$#':
-                self.feedback_ack = True
-                self.chunk_process = sender.get_process_from_feedback(msg_bytes)
-                self.feedback_num += 1
+            # msg_bytes = data_rec
+                # 接收完成
+                if msg_bytes[:2] == b'#$':
+                    self.recvdone_ack = True
+                # 进度包    
+                elif msg_bytes[:2] == b'$#':
+                    self.feedback_ack = True
+                    self.chunk_process = sender.get_process_from_feedback(msg_bytes)
+                    self.feedback_num += 1
         self.creat_detect_feedback_Timer()
 
     def creat_detect_feedback_Timer(self):
