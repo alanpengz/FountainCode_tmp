@@ -96,6 +96,7 @@ class Sender:
         with open(self.imgsend, 'rb') as f:
             self.m = f.read()
         self.chunk_num = ceil(len(self.m)/self.chunk_size)
+        print('chunks_num: ', self.chunk_num)
 
 
     def chunk_data(self, num):

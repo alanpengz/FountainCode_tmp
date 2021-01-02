@@ -44,7 +44,7 @@ def recv_check(recv_data):
         sum = (sum >> 16) + (sum & 0xffff)
     print('checksum:', sum)
 
-    if sum == 65535:
+    if sum != 65535:
         print('Receive check wrong!')
     # 修改
     if odd_flag:

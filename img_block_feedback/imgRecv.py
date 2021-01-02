@@ -14,6 +14,7 @@ import datetime
 import serial
 import threading
 import RPi.GPIO as GPIO
+import pandas as pd
 
 
 LIB_PATH = os.path.dirname(__file__)
@@ -44,7 +45,7 @@ def recv_check(recv_data):
     sum = (sum >> 16) + (sum & 0xffff)
     while sum > 65535:
         sum = (sum >> 16) + (sum & 0xffff)
-    print('checksum:', sum)
+    # print('checksum:', sum)
 
     if sum == 65535:
         if odd_flag:
@@ -86,7 +87,7 @@ class Receiver:
         self.drop_id = 0
         self.data_rec = ""
         self.recv_dir = os.path.join(RECV_PATH, time.asctime().replace(' ', '_').replace(':', '_'))
-        self.entries = [[]]*984
+        self.entries = [None]*915
         self.chunks = []
 
         self.pack_id = 0
@@ -97,6 +98,8 @@ class Receiver:
         self.drop_per_sec = []
         self.recv_done_flag=False
         self.timer_start=False
+        self.t0 = 0
+        self.t1 = 0
 
     '''LT喷泉码接收解码部分'''
     def begin_to_catch(self):
@@ -105,6 +108,7 @@ class Receiver:
         if a_drop_bytes is not None:
             # 从收到第一个包之后,开启定时记录吞吐量线程
             if self.timer_start==False:
+                self.t0 = time.time()
                 self.creat_ttl_Timer()
                 self.creat_feedback_Timer()
                 self.timer_start = True
@@ -150,7 +154,21 @@ class Receiver:
         logging.info('chunk_id: '+ str(chunk_id) + ' received, chunk_size: ' + str(len(chunk_data)))
 
         if self.isDone():
+            self.t1 = time.time()
             self.recv_done_flag=True
+            print('time used: ', self.t1-self.t0)
+            # 记录吞吐量
+            self.cal_ttl()
+            print('packid history: ', self.pack_save, len(self.pack_save))
+            print('packs_per_sec: ', self.pack_per_sec, len(self.pack_per_sec))
+            print('dropid history: ', self.drop_save, len(self.drop_save))
+            print('drops_per_sec: ', self.drop_per_sec, len(self.drop_per_sec))
+            res = pd.DataFrame({'packid_history':self.pack_save,  
+            'packs_per_sec':self.pack_per_sec,
+            'dropid_history':self.drop_save,  
+            'drops_per_sec':self.drop_per_sec
+            })
+            res.to_csv(('data_save/Send_ttl'+ '_' + time.asctime().replace(' ', '_').replace(':', '_') + '.csv'),  mode='a')
             self.send_recv_done_ack()
 
     def get_bits(self):
@@ -189,14 +207,14 @@ class Receiver:
             idx += 1
 
     def isDone(self):
-        return [] not in self.entries
+        return None not in self.entries
 
     def send_recv_done_ack(self):
         if self.recv_done_flag:
-            M = b'M\r\n'
-            self.port.write(M)
-            self.port.flushOutput()
-            time.sleep(0.01)
+            # M = b'M\r\n'
+            # self.port.write(M)
+            # self.port.flushOutput()
+            # time.sleep(0.01)
 
             ack = b'#$\r\n'
             acksend = bytearray(ack)
@@ -211,10 +229,10 @@ class Receiver:
         process_bits = bitarray.bitarray(process_bitmap)
         process_bytes = process_bits.tobytes()
         fb = b'$#' + process_bytes + b'\r\n'
-        M = b'M\r\n'
-        self.port.write(M)
-        self.port.flushOutput()
-        time.sleep(0.01)
+        # M = b'M\r\n'
+        # self.port.write(M)
+        # self.port.flushOutput()
+        # time.sleep(0.01)
         self.port.write(fb)
         self.port.flushOutput()
         self.creat_feedback_Timer()
@@ -227,7 +245,7 @@ class Receiver:
     def getProcess_bits(self):
         process_bits = []
         for entry in self.entries:
-            if entry is []:
+            if entry is None:
                 process_bits.append(0)
             else:
                 process_bits.append(1)
@@ -236,11 +254,9 @@ class Receiver:
 
 if __name__ == '__main__':
     receiver = Receiver(bus=0, device=1, port='/dev/ttyUSB1', baudrate=115200, timeout=1)
-    start = time.time()
     while True:
-        now = time.time()
         receiver.begin_to_catch()
-        if now - start > 18:
+        if receiver.recv_done_flag:
             img_data = receiver.get_bits()
             with open(os.path.join("lena_recv_"+time.asctime().replace(' ', '_').replace(':', '_')+".bmp"), 'wb') as f:
                 f.write(img_data)
