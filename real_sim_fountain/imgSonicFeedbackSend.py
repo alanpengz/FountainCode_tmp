@@ -115,7 +115,6 @@ class Sender:
         self.fountain_type = fountain_type
         self.dropid = 0
         self.recvdone_ack = False
-        self.feedback_ack = False
         self.chunk_process = []
         self.feedback_num = 0
 
@@ -169,6 +168,9 @@ class Sender:
         return self.fountain.droplet().toBytes()
 
     def send_drops_spi(self):
+        # 启动反馈检测线程
+        self.creat_detect_feedback_Timer()
+        # 主线程
         while True:
             self.dropid += 1
  
@@ -187,22 +189,12 @@ class Sender:
             print("dropdatalen: ", len(self.a_drop()))
             print("droplen: ", len(sendbytes))
             print("framelen: ", len(sendbytearray))
-            # 检测接收端的返回
-            self.feedback_detect()
+    
             if(self.recvdone_ack):
                 logging.info('============Fountain Send done===========')
                 logging.info('Send drops used: ' + str(self.dropid))
                 logging.info('Feedback num: ' + str(self.feedback_num))
                 break
-            if(self.feedback_ack):
-                self.fountain.all_at_once = True
-                self.fountain.chunk_process =  self.chunk_process
-                print('Progress Received: ', self.chunk_process)
-                print('Progress num: ', len(self.chunk_process))
-                self.feedback_ack = False
-                # 接收完成
-                if self.chunk_process==[]:
-                    break
 
             time.sleep(0.1) #发包间隔
 
@@ -222,11 +214,21 @@ class Sender:
                 self.recvdone_ack = True
             # 进度包    
             elif msg_bytes[:2] == b'$#':
-                self.feedback_ack = True
-                self.chunk_process = self.get_process_from_feedback(msg_bytes)
-                self.fountain.feedback_idx = self.feedback_num
-                self.feedback_num += 1
+                self.fountain.all_at_once = True
+                process_recv = self.get_process_from_feedback(msg_bytes)
+                if process_recv==[]:
+                    self.recvdone_ack = True
+                else:
+                    self.chunk_process = process_recv
+                    self.fountain.chunk_process =  self.chunk_process
+                    self.fountain.feedback_idx = self.feedback_num
+                    self.feedback_num += 1
+        self.creat_detect_feedback_Timer()
 
+    def creat_detect_feedback_Timer(self):
+        if self.recvdone_ack==False:
+            t = threading.Timer(0.001, self.feedback_detect)
+            t.start()
 
     def get_process_from_feedback(self, rec_bytes):
         process = []

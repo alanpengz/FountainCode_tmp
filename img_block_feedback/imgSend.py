@@ -23,6 +23,17 @@ IMG_PATH = os.path.join(LIB_PATH, './imgSend/lena.bmp')
 logging.basicConfig(level=logging.INFO, 
         format="%(asctime)s %(filename)s:%(lineno)s %(levelname)s-%(message)s",)
 
+def file_to_code(file_name):
+    '''
+    从文件中读取内容，转化为二进制编码
+    read code from file
+    '''
+    fin = open(file_name, 'rb')
+    read_bits = bitarray.bitarray()
+    read_bits.fromfile(fin)
+    fin.close()
+    return read_bits
+
 def bitarray2str(bit):
     return bit.tobytes()
 
@@ -112,7 +123,41 @@ class Sender:
 
         with open(self.imgsend, 'rb') as f:
             self.m = f.read()
+        
+        # temp_file = './imgSend/lena.png'
+        # rgb_list = ['r', 'g', 'b']
+        # temp_file_list = [temp_file + '_' + ii for ii in rgb_list]
+        # self.m = self.compose_rgb(temp_file_list)
+
         self.chunk_num = ceil(len(self.m)/self.chunk_size)
+        print('chunk_nums: ', self.chunk_num)
+
+    def compose_rgb(self, file_list, each_chunk_bit_size=4000):                          # each_chunk_bit_size=2500, len(m_byte)不等于240000/8=30000
+        '''                                                                             # each_chunk_bit_size=4000，m_byte=30000，fountain_chunk_size设置成能被30000整除，每个块长度一样，方便异或
+        将三个文件和并为一个文件
+        '''
+        m_list = []
+        m_list.append(file_to_code(file_list[0]))  # 不用file_to_code()                             bitaray
+        m_list.append(file_to_code(file_list[1]))
+        m_list.append(file_to_code(file_list[2]))
+
+        m_bytes = b''
+        print('r bitstream len:', len(m_list[0]))
+        print('g bitstream len:', len(m_list[1]))
+        print('b bitstream len:', len(m_list[2]))
+        print('rgb bitstream len:', len(m_list[0]) + len(m_list[1])+len(m_list[2]))
+        print('rgb bytes should be:', (len(m_list[0]) + len(m_list[1])+len(m_list[2])) /8)
+
+        for i in range(int(ceil(len(m_list[0]) / float(each_chunk_bit_size)))):     #
+            start = i * each_chunk_bit_size
+            end = min((i + 1) * each_chunk_bit_size, len(m_list[0]))
+
+            m_bytes += m_list[0][start: end].tobytes()
+            m_bytes += m_list[1][start: end].tobytes()
+            m_bytes += m_list[2][start: end].tobytes()
+
+        print('compose_rgb bytes len(m):', len(m_bytes))  # r,g,b(size)+...+
+        return m_bytes
 
     def chunk_data(self, num):
         start = self.chunk_size * num
@@ -144,7 +189,7 @@ class Sender:
 
                 if(self.recvdone_ack):
                     break
-                
+
             logging.info('============Send done===========')
             logging.info('Send Packets used: ' + str(self.pack_send_num))
             logging.info('Feedback num: ' + str(self.feedback_num))

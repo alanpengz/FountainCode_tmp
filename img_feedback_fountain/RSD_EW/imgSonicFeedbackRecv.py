@@ -237,18 +237,6 @@ class Receiver:
                 self.feedback_ack_flag = True
                 self.feedback_send_done=True
 
-        # if self.real_drop_id >= self.glass.num_chunks:
-        #     if (self.real_drop_id - self.glass.num_chunks)%10==0 and self.feedback_send_done==False:
-        #         self.chunk_process = self.glass.getProcess() # 用于返回进程包
-        #         self.glass.glass_process_history.append(self.chunk_process) # 添加反馈历史数据，用于droplet参数，正确译码
-        #         self.send_feedback()
-        #         print("Feedback chunks: ", self.chunk_process)
-        #         print("Feedback chunks num: ", len(self.chunk_process))
-        #         print("Feedback idx: ", self.feedback_idx)
-        #         self.feedback_idx += 1
-        #         self.feedback_ack_flag = True
-        #         self.feedback_send_done=True
-
      # 定时器线程每隔1s记录发包数,即吞吐量
     def save_throughout_put(self):
         if(self.recv_done_flag==False):
