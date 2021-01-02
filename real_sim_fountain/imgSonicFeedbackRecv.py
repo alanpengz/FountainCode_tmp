@@ -184,18 +184,22 @@ class Receiver:
             logging.info("Sonic Feedback Fountain time elapsed:" + str(self.t1 - self.t0))
             
         # 接收到K个数据包之后
-        if self.drop_id >= round(0.8*self.glass.num_chunks) and self.recv_done_flag==False:
-            if (self.drop_id - round(0.8*self.glass.num_chunks))%20==0:
-                self.chunk_process = self.glass.getProcess() # 用于返回进程包
-                self.glass.glass_process_history.append(self.chunk_process) # 添加反馈历史数据，用于droplet参数，正确译码
-                
-                process_bitmap = self.glass.getProcess_bits()
+        n1 = round(0.8*self.glass.num_chunks)
+        n2 = 20
+        if self.drop_id >= n1 and self.recv_done_flag==False:
+            if (self.drop_id - n1)%n2==0:
+                process = self.glass.getProcess()
+                # 用于添加反馈历史数据, 用于droplet参数，正确译码
+                self.chunk_process = process[0]
+                self.glass.glass_process_history.append(self.chunk_process)
+                # 用于实际反馈
+                process_bitmap = process[1]
                 process_bits = bitarray.bitarray(process_bitmap)
                 self.process_bytes = process_bits.tobytes()
+
                 t = threading.Timer(1.8, self.send_feedback)
                 t.start()
 
-                # self.send_feedback()
                 print("Feedback chunks: ", self.chunk_process)
                 print("Feedback chunks num: ", len(self.chunk_process))
                 print("Feedback idx: ", self.feedback_idx)
