@@ -94,7 +94,7 @@ class Sender:
                  baudrate,
                  timeout,
                  imgsend = IMG_PATH,
-                 fountain_chunk_size=200,
+                 fountain_chunk_size=215,
                  fountain_type = 'normal',
                  ):
         self.spiSend = spidev.SpiDev()
@@ -126,7 +126,7 @@ class Sender:
         with open(self.imgsend, 'rb') as f:
             self.m = f.read()
 
-        # temp_file = './imgSend/lena.png'
+        # temp_file = '../imgSend/lena.png'
         # rgb_list = ['r', 'g', 'b']
         # temp_file_list = [temp_file + '_' + ii for ii in rgb_list]
         # self.m = self.compose_rgb(temp_file_list)

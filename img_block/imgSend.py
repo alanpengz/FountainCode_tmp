@@ -75,7 +75,7 @@ class Sender:
                  bus,
                  device,
                  imgsend = IMG_PATH,
-                 chunk_size=200,          
+                 chunk_size=215,          
                  ):
         self.spiSend = spidev.SpiDev()
         self.spiSend.open(bus, device)

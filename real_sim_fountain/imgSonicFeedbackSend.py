@@ -93,7 +93,7 @@ class Sender:
                  baudrate,
                  timeout,
                  imgsend = IMG_PATH,
-                 fountain_chunk_size=200,
+                 fountain_chunk_size=215,
                  fountain_type = 'normal',
                  ):
         self.spiSend = spidev.SpiDev()
