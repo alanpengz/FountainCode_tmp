@@ -9,6 +9,7 @@ import bitarray
 from time import sleep
 import logging
 import time
+import serial
 import spidev
 import datetime
 import RPi.GPIO as GPIO
@@ -69,7 +70,10 @@ def spi_init():
 
 class Receiver:
     def __init__(self, bus,
-                 device
+                 device,
+                 port,
+                 baudrate,
+                 timeout,
                 ):
         self.spiRecv = spidev.SpiDev()
         self.spiRecv.open(bus, device)
@@ -81,8 +85,9 @@ class Receiver:
         self.spiSend.max_speed_hz = 6250000 #976000
         self.spiSend.mode = 0b00
 
-        # spi初始化
+        # 串口和spi初始化
         spi_init()
+        self.port = serial.Serial(port, baudrate)
 
         self.packet_id = 0
         self.drop_id = 0
@@ -212,14 +217,15 @@ class Receiver:
             
         # 反馈
         n1 = round(0.8*self.glass.num_chunks)
-        n2 = 20
+        n2 = 30
         if self.drop_id >= n1 and self.recv_done_flag==False:
             if (self.drop_id - n1)%n2==0:
-                # 用于添加反馈历史数据
-                self.chunk_process = self.glass.getProcess() 
-                self.glass.glass_process_history.append(self.chunk_process) # 添加反馈历史数据，用于droplet参数，正确译码
+                process = self.glass.getProcess()
+                # 用于添加反馈历史数据, 用于droplet参数，正确译码
+                self.chunk_process = process[0]
+                self.glass.glass_process_history.append(self.chunk_process)
                 # 用于实际反馈
-                process_bitmap = self.glass.getProcess_bits()
+                process_bitmap = process[1]
                 process_bits = bitarray.bitarray(process_bitmap)
                 self.process_bytes = process_bits.tobytes()
 
@@ -230,18 +236,6 @@ class Receiver:
                 self.feedback_idx += 1
                 self.feedback_ack_flag = True
                 self.feedback_send_done=True
-
-        # if self.real_drop_id >= self.glass.num_chunks:
-        #     if (self.real_drop_id - self.glass.num_chunks)%10==0 and self.feedback_send_done==False:
-        #         self.chunk_process = self.glass.getProcess() # 用于返回进程包
-        #         self.glass.glass_process_history.append(self.chunk_process) # 添加反馈历史数据，用于droplet参数，正确译码
-        #         self.send_feedback()
-        #         print("Feedback chunks: ", self.chunk_process)
-        #         print("Feedback chunks num: ", len(self.chunk_process))
-        #         print("Feedback idx: ", self.feedback_idx)
-        #         self.feedback_idx += 1
-        #         self.feedback_ack_flag = True
-        #         self.feedback_send_done=True
 
      # 定时器线程每隔1s记录发包数,即吞吐量
     def save_throughout_put(self):
@@ -273,36 +267,35 @@ class Receiver:
                 self.drops_per_sec.append(self.dropid_save[idx]-self.dropid_save[idx-1])
             idx += 1
         
+
     def send_recv_done_ack(self):
         if self.recv_done_flag:
-            ack = b'#$'
-            acklen = len(ack)
+            M = b'M\r\n'
+            self.port.write(M)
+            self.port.flushOutput()
+            time.sleep(0.01)
+
+            ack = b'#$\r\n'
             acksend = bytearray(ack)
-            while(acklen < 239):
-                acksend.insert(acklen, 0)
-                acklen += 1
-            self.spiSend.xfer2(acksend)
-            logging.info('Send fountain ACK done')
+            self.port.write(acksend)
+            self.port.flushOutput()
+            logging.info('Send Sonic Fountain ACK done')
             logging.info('Recv Packets: : ' + str(self.packet_id))
             logging.info('Recv drops: ' + str(self.drop_id))
 
     def send_feedback(self):
-        fb = b'$#'
-        for chunk_id in self.chunk_process:
-            chunk_id_bits = format(int(chunk_id), "016b")
-            fb += bitarray.bitarray(chunk_id_bits).tobytes()
-            
-        fblen = len(fb)
-        fbsend = bytearray(fb)
-        while(fblen < 239):
-            fbsend.insert(fblen, 0)
-            fblen += 1
-        self.spiSend.xfer2(fbsend)
+        fb = b'$#' + self.process_bytes + b'\r\n'
+        M = b'M\r\n'
+        self.port.write(M)
+        self.port.flushOutput()
+        time.sleep(0.01)
+        self.port.write(fb)
+        self.port.flushOutput()
 
 
 
 if __name__ == '__main__':
-    receiver = Receiver(bus=0, device=1)
+    receiver = Receiver(bus=0, device=1, port='/dev/ttyUSB1', baudrate=115200, timeout=1)
     # receiver.send_feedback()
     while True:
         receiver.begin_to_catch()

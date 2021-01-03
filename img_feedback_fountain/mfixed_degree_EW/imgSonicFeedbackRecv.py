@@ -217,7 +217,7 @@ class Receiver:
             
         # 反馈
         n1 = round(0.8*self.glass.num_chunks)
-        n2 = 20
+        n2 = 30
         if self.drop_id >= n1 and self.recv_done_flag==False:
             if (self.drop_id - n1)%n2==0:
                 process = self.glass.getProcess()
