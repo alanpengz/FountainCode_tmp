@@ -221,7 +221,7 @@ class Fountain(object):
 
 class EW_Fountain(Fountain):
     ''' 扩展窗喷泉码 '''
-    def __init__(self, data, chunk_size, ew_process=[], seed=None, w1_size=0.15, w1_pro=0.084):
+    def __init__(self, data, chunk_size, ew_process=[], seed=None, w1_size=0.6, w1_pro=0.6):
         Fountain.__init__(self, data, chunk_size=chunk_size, seed=None)
         logging.info("-----------------EW_Fountain------------")
         self.w1_p = w1_size
@@ -291,7 +291,7 @@ class EW_Fountain(Fountain):
 
 class EW_Droplet(Droplet):
     '''扩展窗喷泉码专用水滴, 计算水滴使用的数据块列表'''
-    def __init__(self, data, seed, num_chunks, process, func_id, feedback_idx, w1_size=0.15, w1_pro=0.084):
+    def __init__(self, data, seed, num_chunks, process, func_id, feedback_idx, w1_size=0.6, w1_pro=0.6):
         Droplet.__init__(self, data, seed, num_chunks, process, func_id=func_id, feedback_idx=feedback_idx)
         m = ' ' * num_chunks * len(data)
         self.ower = EW_Fountain(m, len(self.data), w1_size=w1_size, w1_pro=w1_pro, ew_process=process)
