@@ -122,13 +122,13 @@ class Sender:
         self.dropid_save = []
         self.throughout_put = []
 
-        with open(self.imgsend, 'rb') as f:
-            self.m = f.read()
+        # with open(self.imgsend, 'rb') as f:
+        #     self.m = f.read()
 
-        # temp_file = './imgSend/lena.png'
-        # rgb_list = ['r', 'g', 'b']
-        # temp_file_list = [temp_file + '_' + ii for ii in rgb_list]
-        # self.m = self.compose_rgb(temp_file_list)
+        temp_file = '../imgSend/lena.png'
+        rgb_list = ['r', 'g', 'b']
+        temp_file_list = [temp_file + '_' + ii for ii in rgb_list]
+        self.m = self.compose_rgb(temp_file_list)
         self.fountain = self.fountain_builder()
         self.show_info()
 

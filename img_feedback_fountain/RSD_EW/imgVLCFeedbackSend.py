@@ -118,13 +118,13 @@ class Sender:
         self.dropid_save = []
         self.throughout_put = []
 
-        with open(self.imgsend, 'rb') as f:
-            self.m = f.read()
+        # with open(self.imgsend, 'rb') as f:
+        #     self.m = f.read()
 
-        # temp_file = './imgSend/lena.png'
-        # rgb_list = ['r', 'g', 'b']
-        # temp_file_list = [temp_file + '_' + ii for ii in rgb_list]
-        # self.m = self.compose_rgb(temp_file_list)
+        temp_file = '../imgSend/lena.png'
+        rgb_list = ['r', 'g', 'b']
+        temp_file_list = [temp_file + '_' + ii for ii in rgb_list]
+        self.m = self.compose_rgb(temp_file_list)
         self.fountain = self.fountain_builder()
         self.show_info()
 
@@ -203,15 +203,6 @@ class Sender:
                 })
                 res.to_csv(('data_save/Send_ttl'+ '_' + time.asctime().replace(' ', '_').replace(':', '_') + '.csv'),  mode='a')
                 break
-            if(self.feedback_ack):
-                # 接收完成
-                if self.chunk_process==[]:
-                    break
-                self.fountain.all_at_once = True
-                self.fountain.chunk_process =  self.chunk_process
-                print('Progress Received: ', self.chunk_process)
-                print('Progress num: ', len(self.chunk_process))
-                self.feedback_ack = False
                
             time.sleep(0.1) #发包间隔
 
@@ -249,10 +240,15 @@ class Sender:
 
             # 进度包
             if rec_bytes[:2]==b'$#':
-                self.feedback_ack = True
-                self.chunk_process = self.get_process_from_feedback(rec_bytes)
-                self.fountain.feedback_idx = self.feedback_num
-                self.feedback_num += 1
+                self.fountain.all_at_once = True
+                process_recv = self.get_process_from_feedback(msg_bytes)
+                if process_recv==[]:
+                    self.recvdone_ack = True
+                else:
+                    self.chunk_process = process_recv
+                    self.fountain.chunk_process =  self.chunk_process
+                    self.fountain.feedback_idx = self.feedback_num
+                    self.feedback_num += 1
             # 接收完成
             if rec_bytes[:2]==b'#$':
                 self.recvdone_ack = True
