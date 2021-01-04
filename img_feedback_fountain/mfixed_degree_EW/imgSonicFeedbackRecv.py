@@ -226,8 +226,9 @@ class Receiver:
                 self.glass.glass_process_history.append(self.chunk_process)
                 # 用于实际反馈
                 process_bitmap = process[1]
-                process_bits = bitarray.bitarray(process_bitmap)
-                self.process_bytes = process_bits.tobytes()
+                self.process_bytes = self.bit2hex(process_bitmap)
+                # process_bits = bitarray.bitarray(process_bitmap)
+                # self.process_bytes = process_bits.tobytes()
 
                 self.send_feedback()
                 print("Feedback chunks: ", self.chunk_process)
@@ -304,10 +305,52 @@ class Receiver:
         self.port.write(fb)
         self.port.flushOutput()
 
-
+    def bit2hex(self, bit_array_source):
+        bit_array = bit_array_source
+        a = len(bit_array) % 4
+        for j in range (0,a):
+            bit_array.append(0)
+        result = b''
+        i = 0
+        while i < len(bit_array):
+            bit4 = bit_array[i:i+4]
+            if(bit4 == [0,0,0,0]):
+                result += b'0'
+            elif(bit4 == [0,0,0,1]):
+                result += b'1'
+            elif(bit4 == [0,0,1,0]):
+                result += b'2'
+            elif(bit4 == [0,0,1,1]):
+                result += b'3'  
+            elif(bit4 == [0,1,0,0]):
+                result += b'4'
+            elif(bit4 == [0,1,0,1]):
+                result += b'5'
+            elif(bit4 == [0,1,1,0]):
+                result += b'6'
+            elif(bit4 == [0,1,1,1]):
+                result += b'7'  
+            elif(bit4 == [1,0,0,0]):
+                result += b'8'
+            elif(bit4 == [1,0,0,1]):
+                result += b'9'
+            elif(bit4 == [1,0,1,0]):
+                result += b'a'
+            elif(bit4 == [1,0,1,1]):
+                result += b'b'  
+            elif(bit4 == [1,1,0,0]):
+                result += b'c'
+            elif(bit4 == [1,1,0,1]):
+                result += b'd'
+            elif(bit4 == [1,1,1,0]):
+                result += b'e'
+            elif(bit4 == [1,1,1,1]):
+                result += b'f'
+            i += 4
+        return result
 
 if __name__ == '__main__':
-    receiver = Receiver(bus=0, device=1, port='/dev/ttyUSB1', baudrate=115200, timeout=1)
+    receiver = Receiver(bus=0, device=1, port='/dev/ttyUSB0', baudrate=115200, timeout=1)
     # receiver.send_feedback()
     while True:
         receiver.begin_to_catch()

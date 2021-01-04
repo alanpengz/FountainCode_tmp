@@ -270,13 +270,53 @@ class Sender:
     def get_process_from_feedback(self, rec_bytes):
         process = []
         chunk_id = 0
-        process_bits = bitarray.bitarray(endian='big')
-        process_bits.frombytes(rec_bytes[2:])
+        rec_bytes = rec_bytes[2:]
+        process_bits = self.hex2bit(rec_bytes)
+        # process_bits = bitarray.bitarray(endian='big')
+        # process_bits.frombytes(rec_bytes[2:])
         while chunk_id < self.fountain.num_chunks:
             if(process_bits[chunk_id]==False):
                 process.append(chunk_id)
             chunk_id += 1
         return process
+    
+    def hex2bit(self, hex_source):
+        result = []
+        for i in range(0,len(hex_source)):
+            if(hex_source[i] == 48):
+                result.extend([0,0,0,0])
+            elif(hex_source[i] == 49):
+                result.extend([0,0,0,1])
+            elif(hex_source[i] == 50):
+                result.extend([0,0,1,0])
+            elif(hex_source[i] == 51):
+                result.extend([0,0,1,1])
+            elif(hex_source[i] == 52):
+                result.extend([0,1,0,0])
+            elif(hex_source[i] == 53):
+                result.extend([0,1,0,1])
+            elif(hex_source[i] == 54):
+                result.extend([0,1,1,0])
+            elif(hex_source[i] == 55):
+                result.extend([0,1,1,1])
+            elif(hex_source[i] ==56):
+                result.extend([1,0,0,0])
+            elif(hex_source[i] == 57):
+                result.extend([1,0,0,1])
+            elif(hex_source[i] == 97):
+                result.extend([1,0,1,0])
+            elif(hex_source[i] == 98):
+                result.extend([1,0,1,1])
+            elif(hex_source[i] == 99):
+                result.extend([1,1,0,0])
+            elif(hex_source[i] == 100):
+                result.extend([1,1,0,1])
+            elif(hex_source[i] == 101):
+                result.extend([1,1,1,0])
+            elif(hex_source[i] == 102):
+                result.extend([1,1,1,1])
+        result = result[0:self.fountain.num_chunks]
+        return result
         
 
 if __name__ == '__main__':
