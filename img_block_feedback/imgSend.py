@@ -14,8 +14,6 @@ import serial
 import spidev
 import datetime
 import RPi.GPIO as GPIO
-import pandas as pd
-
 
 LIB_PATH = os.path.dirname(__file__)
 IMG_PATH = os.path.join(LIB_PATH, './imgSend/lena.bmp')
@@ -120,15 +118,15 @@ class Sender:
         self.pack_send_num = 0 # 发的总包数
         self.dropid_save = []
         self.throughout_put = []
-        self.send_flag = [0]*915
+        self.send_flag = [0]*115
 
-        with open(self.imgsend, 'rb') as f:
-            self.m = f.read()
+        #with open(self.imgsend, 'rb') as f:
+            #self.m = f.read()
         
-        # temp_file = './imgSend/lena.png'
-        # rgb_list = ['r', 'g', 'b']
-        # temp_file_list = [temp_file + '_' + ii for ii in rgb_list]
-        # self.m = self.compose_rgb(temp_file_list)
+        temp_file = './imgSend/lena.png'
+        rgb_list = ['r', 'g', 'b']
+        temp_file_list = [temp_file + '_' + ii for ii in rgb_list]
+        self.m = self.compose_rgb(temp_file_list)
 
         self.chunk_num = ceil(len(self.m)/self.chunk_size)
         print('chunk_nums: ', self.chunk_num)
@@ -171,8 +169,12 @@ class Sender:
         self.creat_detect_feedback_Timer()
         while True:
             idx = 0
-            for flag in self.send_flag:
-                if flag==0:
+            local_flag = [0]*self.chunk_num
+            for i in range(0,self.chunk_num):
+                local_flag[i] = self.send_flag[i]
+            print(local_flag)
+            for idx in range (0,self.chunk_num):
+                if local_flag[idx]==0:
                     a_drop = self.chunk_data(idx)
                     sendbytes = send_check(a_drop)
                     sendbytearray = bytearray(sendbytes)
@@ -182,28 +184,23 @@ class Sender:
                         datalen += 1
 
                     self.spiSend.xfer2(sendbytearray)
-                    self.send_flag[idx]=1
                     self.pack_send_num += 1
                     logging.info('chunk_id: '+ str(idx) + ' feedback_resend done, chunk size: ' + str(self.chunk_size) + ', frame size: ' + str(len(sendbytes)))
                     time.sleep(0.01)
-                    idx += 1
 
                 if(self.recvdone_ack):
                     break
 
-            logging.info('============Send done===========')
-            logging.info('Send Packets used: ' + str(self.pack_send_num))
-            logging.info('Feedback num: ' + str(self.feedback_num))
+            if(self.recvdone_ack):
+                logging.info('============Send done===========')
+                logging.info('Send Packets used: ' + str(self.pack_send_num))
+                logging.info('Feedback num: ' + str(self.feedback_num))
 
-            # 记录吞吐量
-            self.cal_ttl()
-            print('dropid history: ', self.dropid_save, len(self.dropid_save))
-            print('drops_per_sec: ', self.throughout_put, len(self.throughout_put))
-            res = pd.DataFrame({'dropid_history':self.dropid_save,  
-            'drops_per_sec':self.throughout_put
-            })
-            res.to_csv(('data_save/Send_ttl'+ '_' + time.asctime().replace(' ', '_').replace(':', '_') + '.csv'),  mode='a')
-            break
+                # 记录吞吐量
+                self.cal_ttl()
+                print('dropid history: ', self.dropid_save, len(self.dropid_save))
+                print('drops_per_sec: ', self.throughout_put, len(self.throughout_put))
+                break
     
     # 定时器线程每隔1s记录发包数,即吞吐量
     def save_throughout_put(self):
@@ -228,18 +225,58 @@ class Sender:
     
     # 从反馈中获取进度
     def get_process_from_feedback(self, rec_bytes):
-        process = []
         chunk_id = 0
-        process_bits = bitarray.bitarray(endian='big')
-        process_bits.frombytes(rec_bytes[2:])
-        while chunk_id < self.chunk_num:
-            if(process_bits[chunk_id]==False):
-                process.append(chunk_id)
+        rec_bytes =  rec_bytes[2:]
+        print('2222',rec_bytes)
+        process_bits = self.hex2bit(rec_bytes)
+        # process_bits = bitarray.bitarray(endian='big')
+        # process_bits.frombytes(rec_bytes[2:])
+        print(process_bits)
+        while chunk_id < len(process_bits):
+            if(process_bits[chunk_id]==1):
+                self.send_flag[chunk_id]=1
             chunk_id += 1
-        for idx in process:
-            self.send_flag[idx]=0
-        return process
-
+        #print(self.send_flag)
+	
+    def hex2bit(self, hex_source):
+        result = []
+        for i in range(0,len(hex_source)):
+            #print(hex_source[i])
+            if(hex_source[i] == 48):
+                result.extend([0,0,0,0])
+            elif(hex_source[i] == 49):
+                result.extend([0,0,0,1])
+            elif(hex_source[i] == 50):
+                result.extend([0,0,1,0])
+            elif(hex_source[i] == 51):
+                result.extend([0,0,1,1])
+            elif(hex_source[i] == 52):
+                result.extend([0,1,0,0])
+            elif(hex_source[i] == 53):
+                result.extend([0,1,0,1])
+            elif(hex_source[i] == 54):
+                result.extend([0,1,1,0])
+            elif(hex_source[i] == 55):
+                result.extend([0,1,1,1])
+            elif(hex_source[i] ==56):
+                result.extend([1,0,0,0])
+            elif(hex_source[i] == 57):
+                result.extend([1,0,0,1])
+            elif(hex_source[i] == 97):
+                result.extend([1,0,1,0])
+            elif(hex_source[i] == 98):
+                result.extend([1,0,1,1])
+            elif(hex_source[i] == 99):
+                result.extend([1,1,0,0])
+            elif(hex_source[i] == 100):
+                result.extend([1,1,0,1])
+            elif(hex_source[i] == 101):
+                result.extend([1,1,1,0])
+            elif(hex_source[i] == 102):
+                result.extend([1,1,1,1])
+        result = result[0:self.chunk_num]
+        return result
+		
     # 检测反馈
     def feedback_detect(self):   
         usetime = 0
@@ -247,25 +284,43 @@ class Sender:
         size = self.port.in_waiting
         if size>0:
             start = time.time()
-            while(usetime < 0.05):
+            while(usetime < 0.1):
                 data_rec += self.port.read_all()
                 now = time.time()
                 usetime = now - start
-            data_str = str(data_rec)
-            idx = data_str.find('Received String: ')
-            if idx>=0:
-                msg_str = data_str[idx+17:]
-                msg_bytes = bytes(msg_str, encoding="utf-8")
+            #print('=======',data_rec)
+            
+            idx = 0
+            idx1=0
+            for i in range(0,len(data_rec)):
+                a = data_rec[i:i+8]
+                b = data_rec[i:i+4]
+                if(a == b'Received'):
+                    idx = i+17
+                if(b == b'MFSK'):
+                    idx1 = i-4
+                    break
+            
+            msg_bytes = data_rec[idx:idx1]
+            #print('1111',msg_bytes)
+            #data_str = str(data_rec,encoding="utf-8")
+            #idx = data_str.find('Received String: ')
+            #idx2 = data_str.find('MFSK')
+            #if idx>=0:
+                #msg_str = data_str[idx+17:idx2-7]
+                #msg_bytes = bytes(msg_str, encoding="utf-8")
+                #print(msg_bytes)
 
             # msg_bytes = data_rec
                 # 接收完成
-                if msg_bytes[:2] == b'#$':
-                    self.recvdone_ack = True
-                # 进度包    
-                elif msg_bytes[:2] == b'$#':
-                    self.feedback_ack = True
-                    self.chunk_process = sender.get_process_from_feedback(msg_bytes)
-                    self.feedback_num += 1
+            if msg_bytes[:2] == b'#$':
+                self.recvdone_ack = True
+            # 进度包    
+            elif msg_bytes[:2] == b'$#':
+                self.feedback_ack = True
+                self.chunk_process = self.get_process_from_feedback(msg_bytes)
+                self.feedback_num += 1
+                    
         self.creat_detect_feedback_Timer()
 
     def creat_detect_feedback_Timer(self):
