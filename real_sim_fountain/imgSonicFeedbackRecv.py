@@ -62,6 +62,7 @@ def recv_check(recv_data):
 
 def spi_init():
     GPIO.setmode(GPIO.BCM)
+    GPIO.setup(19,GPIO.OUT,initial=GPIO.LOW)
     GPIO.setup(25,GPIO.IN)
     GPIO.setup(26,GPIO.OUT,initial=GPIO.LOW)
     GPIO.output(26,GPIO.HIGH)
@@ -174,7 +175,7 @@ class Receiver:
             with open(os.path.join(self.recv_dir, "img_recv" + ".bmp"), 'wb') as f:
                 f.write(img_data)
 
-            t1 = threading.Timer(1.8, self.send_recv_done_ack)
+            t1 = threading.Timer(2.6, self.send_recv_done_ack)
             t1.start()
             # self.send_recv_done_ack() # 接收完成返回ack
             logging.info('============Recv done===========')
@@ -185,7 +186,7 @@ class Receiver:
             
         # 接收到K个数据包之后
         n1 = round(0.8*self.glass.num_chunks)
-        n2 = 20
+        n2 = 30
         if self.drop_id >= n1 and self.recv_done_flag==False:
             if (self.drop_id - n1)%n2==0:
                 process = self.glass.getProcess()
@@ -197,7 +198,7 @@ class Receiver:
                 process_bits = bitarray.bitarray(process_bitmap)
                 self.process_bytes = process_bits.tobytes()
 
-                t = threading.Timer(1.8, self.send_feedback)
+                t = threading.Timer(2.6, self.send_feedback)
                 t.start()
 
                 print("Feedback chunks: ", self.chunk_process)
@@ -216,8 +217,6 @@ class Receiver:
 
     # 用定时器线程反馈仿真修改
     def send_feedback(self):
-        # process_bitmap = self.glass.getProcess_bits()
-        # process_bits = bitarray.bitarray(process_bitmap)
         fb = b'$#' + self.process_bytes 
         self.port.write(fb)
         self.port.flushOutput()

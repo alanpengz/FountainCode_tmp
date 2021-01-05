@@ -66,6 +66,7 @@ def bits2string(b):
 
 def spi_init():
     GPIO.setmode(GPIO.BCM)
+    GPIO.setup(19,GPIO.OUT,initial=GPIO.LOW)
     GPIO.setup(25,GPIO.IN)
     GPIO.setup(26,GPIO.OUT,initial=GPIO.LOW)
     GPIO.output(26,GPIO.HIGH)
