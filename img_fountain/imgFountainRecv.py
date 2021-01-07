@@ -112,7 +112,7 @@ class Receiver:
                 rec_bytes = bytes(spi_recv) 
                 frame_len = len(rec_bytes)
                 print("framelen: ", frame_len)
-                print(rec_bytes)
+                # print(rec_bytes)
 
                 if(frame_len > 1):
                     while(rec_bytes[frame_len-1] == 0 and frame_len>=1):
@@ -146,19 +146,23 @@ class Receiver:
 
         self.glass.addDroplet(drop)                             # glass add drops
 
-        logging.info('current chunks')
+        # logging.info('current chunks')
         # logging.error([ii if ii == None else '++++' for ii in self.glass.chunks])
         # logging.info('=============================')
 
         if self.glass.isDone():
             self.recv_done_flag = True
             logging.info('============Recv done===========')
+            logging.info('Send fountain ACK done')
+            logging.info('Recv packs: ' + str(self.pack_id))
+            logging.info('Recv drops: ' + str(self.drop_id))
             # 接收完成写入图像
-            img_data = self.glass.get_bits()
-            os.mkdir(self.recv_dir)
-            with open(os.path.join(self.recv_dir, "img_recv" + ".jpg"), 'wb') as f:
-                f.write(img_data)
-            self.send_recv_done_ack() # 接收完成返回ack
+            # img_data = self.glass.get_bits()
+            # os.mkdir(self.recv_dir)
+            # with open(os.path.join(self.recv_dir, "img_recv" + ".jpg"), 'wb') as f:
+            #     f.write(img_data)
+            # self.send_recv_done_ack() # 接收完成返回ack
+            
 
     def send_recv_done_ack(self):
         if self.recv_done_flag:
@@ -177,7 +181,6 @@ class Receiver:
 
 if __name__ == '__main__':
     receiver = Receiver(bus=0, device=1)
-    time.sleep(1)
     start = time.time()
     while True:
         receiver.begin_to_catch()

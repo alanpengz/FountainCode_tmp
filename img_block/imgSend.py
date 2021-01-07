@@ -122,7 +122,7 @@ class Sender:
 
             self.spiSend.xfer2(sendbytearray)
             logging.info('chunk_id: '+ str(self.dropid) + ' send done, chunk size: ' + str(self.chunk_size) + ', frame size: ' + str(len(sendbytes)))
-            time.sleep(0.01)
+            time.sleep(0.001)
             self.dropid += 1
 
             if(self.dropid >= self.chunk_num):

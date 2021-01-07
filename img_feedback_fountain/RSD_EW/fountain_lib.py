@@ -357,6 +357,8 @@ class Glass:
         self.dropid = 0
         self.glass_process = []
         self.glass_process_history = []
+        self.w1_done_dropid = 0
+        self.w1_done = False
         
     def addDroplet(self, drop):
         self.dropid += 1
@@ -455,7 +457,13 @@ class Glass:
         return (None not in self.chunks) and (len(self.chunks) != 0) 
 
     def is_w1_done(self, w1_size):
-        return None not in self.chunks[:int(round(self.num_chunks * w1_size))]
+        if None not in self.chunks[:int(round(self.num_chunks * w1_size))]:
+            if self.w1_done == False:
+                self.w1_done_dropid = self.dropid
+                self.w1_done = True
+            return True
+        else:
+            return False
 
     def chunksDone(self):
         count = 0
@@ -480,7 +488,6 @@ class Glass:
 
 
 
+
 if __name__ == "__main__":
     pass
-
-

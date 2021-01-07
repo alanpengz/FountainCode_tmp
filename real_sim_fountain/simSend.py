@@ -19,7 +19,7 @@ from fountain_lib import Fountain, Glass
 from fountain_lib import EW_Fountain, EW_Droplet
 
 LIB_PATH = os.path.dirname(__file__)
-IMG_PATH = os.path.join(LIB_PATH, 'imgSend/whale.jpg')
+IMG_PATH = os.path.join(LIB_PATH, 'textfile/text115.txt')
 
 logging.basicConfig(level=logging.INFO, 
         format="%(asctime)s %(filename)s:%(lineno)s %(levelname)s-%(message)s",)
@@ -119,17 +119,17 @@ class Sender:
         self.chunk_process = []
         self.feedback_num = 0
 
-        with open(self.imgsend, 'rb') as f:
-            self.m = f.read()
+        # with open(self.imgsend, 'rb') as f:
+        #     self.m = f.read()
 
-        # temp_file = './imgSend/lena.png'
-        # rgb_list = ['r', 'g', 'b']
-        # temp_file_list = [temp_file + '_' + ii for ii in rgb_list]
-        # self.m = self.compose_rgb(temp_file_list)
+        temp_file = './imgSend/lena.png'
+        rgb_list = ['r', 'g', 'b']
+        temp_file_list = [temp_file + '_' + ii for ii in rgb_list]
+        self.m = self.compose_rgb(temp_file_list)
         self.fountain = self.fountain_builder()
         self.show_info()
 
-    def compose_rgb(self, file_list, each_chunk_bit_size=4000):                          # each_chunk_bit_size=2500, len(m_byte)不等于240000/8=30000
+    def compose_rgb(self, file_list, each_chunk_bit_size=1):                          # each_chunk_bit_size=2500, len(m_byte)不等于240000/8=30000
         '''                                                                             # each_chunk_bit_size=4000，m_byte=30000，fountain_chunk_size设置成能被30000整除，每个块长度一样，方便异或
         将三个文件和并为一个文件
         '''
@@ -149,6 +149,7 @@ class Sender:
             start = i * each_chunk_bit_size
             end = min((i + 1) * each_chunk_bit_size, len(m_list[0]))
 
+            # 这里应该将三个比特流文件按each_chunk_bit_size=1并串转换成spiht压缩比特流，之后再转字节。才能得到渐进传输的效果
             m_bytes += m_list[0][start: end].tobytes()
             m_bytes += m_list[1][start: end].tobytes()
             m_bytes += m_list[2][start: end].tobytes()
@@ -187,9 +188,6 @@ class Sender:
             print("====================")
             print("Send dropid: ", self.dropid)
             print("====================")
-            print("dropdatalen: ", len(self.a_drop()))
-            print("droplen: ", len(sendbytes))
-            print("framelen: ", len(sendbytearray))
     
             if(self.recvdone_ack):
                 logging.info('============Fountain Send done===========')
@@ -211,6 +209,9 @@ class Sender:
             elif msg_bytes[:2] == b'$#':
                 self.fountain.all_at_once = True
                 process_recv = self.get_process_from_feedback(msg_bytes)
+
+                print(msg_bytes[2:])
+                print(process_recv)
                 if process_recv==[]:
                     self.recvdone_ack = True
                 else:

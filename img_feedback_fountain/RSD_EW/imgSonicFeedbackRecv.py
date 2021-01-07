@@ -205,21 +205,32 @@ class Receiver:
 
             # 记录吞吐量
             self.cal_ttl()
-            print('packet_id history: ', self.packid_save, len(self.packid_save))
-            print('packets per sec: ', self.packs_per_sec, len(self.packs_per_sec))
-            print('drop_id history: ', self.dropid_save, len(self.dropid_save))
-            print('drops per sec: ', self.drops_per_sec, len(self.drops_per_sec))
+            # print('packet_id history: ', self.packid_save, len(self.packid_save))
+            print('packets_per_sec: ', self.packs_per_sec, len(self.packs_per_sec))
+            # print('drop_id history: ', self.dropid_save, len(self.dropid_save))
+            print('drops_per_sec: ', self.drops_per_sec, len(self.drops_per_sec))
             res = pd.DataFrame({'packet_id_history':self.packid_save, 
             'packets_per_sec':self.packs_per_sec, 
             'drop_id_history':self.dropid_save, 
             'drops_per_sec':self.drops_per_sec})
             res.to_csv(('data_save/Recv_ttl'+ '_' + time.asctime().replace(' ', '_').replace(':', '_') + '.csv'),  mode='a')
 
+            print('........................................................................')
+            print('INFO: srcID=0, selfID=1, desID=2, starting Relay Forwarding procedure...')
+            print('INFO: Send acoustic broadcast message done !  ')
+            print('INFO: acoustic ACK Received !')
+            print('INFO: ...Starting auto align...')
+
+            # print('........................................................................')
+            # print('INFO: srcID=0, selfID=1, desID=1, Receive Done!')
+            # print('........................................................................')
+
+          
             
         # 反馈
-        n1 = round(0.8*self.glass.num_chunks)
+        n1 = self.glass.w1_done_dropid
         n2 = 30
-        if self.drop_id >= n1 and self.recv_done_flag==False:
+        if self.glass.is_w1_done(0.6) and self.recv_done_flag==False:
             if (self.drop_id - n1)%n2==0:
                 process = self.glass.getProcess()
                 # 用于添加反馈历史数据, 用于droplet参数，正确译码

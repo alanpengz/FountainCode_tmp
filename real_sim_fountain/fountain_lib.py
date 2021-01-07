@@ -195,7 +195,7 @@ class Droplet:
         seed_bits = format(int(self.seed), "032b")
         func_id_bits = format(int(self.func_id), "08b")
         feedback_idx_bits = format(int(self.feedback_idx), "08b")
-        logging.info('fountain num_chunks:{}, seed:{}, func_id:{}, feedback_idx:{}'.format(self.num_chunks, self.seed, self.func_id, self.feedback_idx))
+        logging.info('Send num_chunks:{}, seed:{}, func_id:{}, feedback_idx:{}'.format(self.num_chunks, self.seed, self.func_id, self.feedback_idx))
 
         return bitarray.bitarray(num_chunks_bits + seed_bits + func_id_bits + feedback_idx_bits).tobytes() + self.data
 
@@ -216,7 +216,7 @@ class Fountain(object):
         np.random.seed(seed)
         self.func_id = 0 # 度分布函数：0(RSD，默认)，1(度一分布)，2(改进固定度分布)
         self.feedback_idx = 0 # 反馈时此编码包编码时的进度，用于和接收端同步，译码才能正确。只有当func_id为1时，才有意义。
-        self.show_info()
+        # self.show_info()
 
     def show_info(self):
         logging.info('Fountain info')
@@ -232,7 +232,6 @@ class Fountain(object):
         else:
             self.func_id = 1
             self.chunk_selected = all_at_once_randChunkNums(self.chunk_process)
-        logging.info("seed: {}".format(self.seed))
         logging.info("send chunk list: {}".format(self.chunk_selected))
 
         data = None
@@ -260,7 +259,7 @@ class EW_Fountain(Fountain):
     ''' 扩展窗喷泉码 '''
     def __init__(self, data, chunk_size, ew_process=[], seed=None, w1_size=0.6, w1_pro=0.6):
         Fountain.__init__(self, data, chunk_size=chunk_size, seed=None)
-        logging.info("-----------------EW_Fountain------------")
+        # logging.info("-----------------EW_Fountain------------")
         self.w1_p = w1_size
         self.w1_pro = w1_pro
         self.windows_id_gen = self.windows_selection()

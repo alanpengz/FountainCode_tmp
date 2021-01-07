@@ -19,6 +19,9 @@ from fountain_lib import EW_Fountain, EW_Droplet
 
 LIB_PATH = os.path.dirname(__file__)
 IMG_PATH = os.path.join(LIB_PATH, 'imgSend/whale.jpg')
+IMG_PATH = os.path.join(LIB_PATH, 'imgSend/lena.bmp')
+# IMG_PATH = os.path.join(LIB_PATH, '../real_sim_fountain/textfile/text1000.txt')
+
 
 logging.basicConfig(level=logging.INFO, 
         format="%(asctime)s %(filename)s:%(lineno)s %(levelname)s-%(message)s",)
@@ -114,13 +117,13 @@ class Sender:
         self.recvdone_ack = False
         self.fountain_type = 'normal'
 
-        # with open(self.imgsend, 'rb') as f:
-        #     self.m = f.read()
+        with open(self.imgsend, 'rb') as f:
+            self.m = f.read()
 
-        temp_file = './imgSend/lena.png'
-        rgb_list = ['r', 'g', 'b']
-        temp_file_list = [temp_file + '_' + ii for ii in rgb_list]
-        self.m = self.compose_rgb(temp_file_list)
+        # temp_file = './imgSend/lena.png'
+        # rgb_list = ['r', 'g', 'b']
+        # temp_file_list = [temp_file + '_' + ii for ii in rgb_list]
+        # self.m = self.compose_rgb(temp_file_list)
         self.fountain = self.fountain_builder()
         self.show_info()
 
@@ -184,7 +187,7 @@ class Sender:
             print("dropdatalen: ", len(self.a_drop()))
             print("droplen: ", len(sendbytes))
             print("framelen: ", len(sendbytearray))
-            self.recvdone_ack_detect()
+            # self.recvdone_ack_detect()
             if(self.recvdone_ack):
                 logging.info('============Fountain Send done===========')
                 logging.info('Send drops used: ' + str(self.dropid))

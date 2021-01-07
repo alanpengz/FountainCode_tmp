@@ -46,7 +46,7 @@ def recv_check(recv_data):
     sum = (sum >> 16) + (sum & 0xffff)
     while sum > 65535:
         sum = (sum >> 16) + (sum & 0xffff)
-    print('checksum:', sum)
+    # print('checksum:', sum)
 
     if sum == 65535:
         if odd_flag:
@@ -153,7 +153,6 @@ class Receiver:
         print("====================")
         drop = self.glass.droplet_from_Bytes(d_byte)           # drop
         if self.glass.num_chunks == 0:
-            print('init num_chunks : ', drop.num_chunks)
             self.glass = Glass(drop.num_chunks)                 # 初始化接收glass
             self.chunk_size = len(drop.data)
 
@@ -169,11 +168,11 @@ class Receiver:
         if self.glass.isDone():
             self.t1 = time.time()
             self.recv_done_flag = True
-            # 接收完成写入图像
-            img_data = self.glass.get_bits()
-            os.mkdir(self.recv_dir)
-            with open(os.path.join(self.recv_dir, "img_recv" + ".bmp"), 'wb') as f:
-                f.write(img_data)
+            # # 接收完成写入图像
+            # img_data = self.glass.get_bits()
+            # os.mkdir(self.recv_dir)
+            # with open(os.path.join(self.recv_dir, "img_recv" + ".bmp"), 'wb') as f:
+            #     f.write(img_data)
 
             t1 = threading.Timer(2.6, self.send_recv_done_ack)
             t1.start()
@@ -201,6 +200,7 @@ class Receiver:
                 t = threading.Timer(2.6, self.send_feedback)
                 t.start()
 
+                print(self.process_bytes)
                 print("Feedback chunks: ", self.chunk_process)
                 print("Feedback chunks num: ", len(self.chunk_process))
                 print("Feedback idx: ", self.feedback_idx)
