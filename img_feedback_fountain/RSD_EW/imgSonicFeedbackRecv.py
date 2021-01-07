@@ -239,6 +239,8 @@ class Receiver:
                 # 用于实际反馈
                 process_bitmap = process[1]
                 self.process_bytes = self.bit2hex(process_bitmap)
+                print(process_bitmap)
+                print(self.process_bytes)
                 # process_bits = bitarray.bitarray(process_bitmap)
                 # self.process_bytes = process_bits.tobytes()
 

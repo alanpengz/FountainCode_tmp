@@ -236,9 +236,16 @@ class Sender:
 
     # 检测反馈
     def feedback_detect(self):   
+        usetime = 0
+        data_rec = b''
         size = self.port.in_waiting
         if size>0:
-            data_rec = self.port.read_all()
+            start = time.time()
+            while(usetime < 0.1):
+                data_rec += self.port.read_all()
+                now = time.time()
+                usetime = now - start
+
             data_str = str(data_rec)
             idx = data_str.find('Received String: ')
             if idx>=0:
@@ -273,6 +280,8 @@ class Sender:
         chunk_id = 0
         rec_bytes = rec_bytes[2:]
         process_bits = self.hex2bit(rec_bytes)
+        print(rec_bytes)
+        print(process_bits)
         # process_bits = bitarray.bitarray(endian='big')
         # process_bits.frombytes(rec_bytes[2:])
         while chunk_id < self.fountain.num_chunks:
