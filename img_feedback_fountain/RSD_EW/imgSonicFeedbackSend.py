@@ -123,6 +123,8 @@ class Sender:
         self.dropid_save = []
         self.throughout_put = []
 
+        self.encode_time = []
+
         # with open(self.imgsend, 'rb') as f:
         #     self.m = f.read()
 
@@ -133,8 +135,8 @@ class Sender:
         self.fountain = self.fountain_builder()
         self.show_info()
 
-    def compose_rgb(self, file_list, each_chunk_bit_size=4000):                          # each_chunk_bit_size=2500, len(m_byte)不等于240000/8=30000
-        '''                                                                             # each_chunk_bit_size=4000，m_byte=30000，fountain_chunk_size设置成能被30000整除，每个块长度一样，方便异或
+    def compose_rgb(self, file_list, each_chunk_bit_size=1):                          # (应该设置为1)each_chunk_bit_size=4000，m_byte=30000，fountain_chunk_size设置成能被30000整除，每个块长度一样，方便异或
+        '''                                                                              
         将三个文件和并为一个文件
         '''
         m_list = []
@@ -142,7 +144,7 @@ class Sender:
         m_list.append(file_to_code(file_list[1]))
         m_list.append(file_to_code(file_list[2]))
 
-        m_bytes = b''
+        m_bits_list = []
         print('r bitstream len:', len(m_list[0]))
         print('g bitstream len:', len(m_list[1]))
         print('b bitstream len:', len(m_list[2]))
@@ -153,11 +155,13 @@ class Sender:
             start = i * each_chunk_bit_size
             end = min((i + 1) * each_chunk_bit_size, len(m_list[0]))
 
-            m_bytes += m_list[0][start: end].tobytes()
-            m_bytes += m_list[1][start: end].tobytes()
-            m_bytes += m_list[2][start: end].tobytes()
+            m_bits_list.append(m_list[0][start: end])
+            m_bits_list.append(m_list[1][start: end])
+            m_bits_list.append(m_list[2][start: end])
 
-        print('compose_rgb bytes len(m):', len(m_bytes))  # r,g,b(size)+...+
+        m_bits = bitarray.bitarray(m_bits_list)
+        m_bytes = m_bits.tobytes()
+        print('compose_rgb bytes len(m):', len(m_bytes))
         return m_bytes
 
     def fountain_builder(self):
@@ -181,6 +185,7 @@ class Sender:
             self.dropid += 1
  
             # 发送一帧补0到239字节
+            encode_t0 = time.time()
             sendbytes = send_check(self.a_drop())
             sendbytearray = bytearray(sendbytes)
             datalen = len(sendbytearray)
@@ -188,30 +193,36 @@ class Sender:
                 sendbytearray.insert(datalen, 0)
                 datalen += 1
 
-            self.spiSend.xfer2(sendbytearray)
+            if self.dropid % 29 !=0:
+                self.spiSend.xfer2(sendbytearray)
             print("====================")
             print("Send dropid: ", self.dropid)
             print("====================")
-            print("dropdatalen: ", len(self.a_drop()))
-            print("droplen: ", len(sendbytes))
-            print("framelen: ", len(sendbytearray))
+            print("FountainFrameLen: ", len(self.a_drop()))
+            # print("droplen: ", len(sendbytes))
+            print("SendFrameLen: ", len(sendbytearray))
 
             if(self.recvdone_ack):
                 logging.info('============Fountain Send done===========')
                 logging.info('Send drops used: ' + str(self.dropid))
                 logging.info('Feedback num: ' + str(self.feedback_num))
 
+                # print('avgs_encode_time: ', float(sum(self.encode_time)/len(self.encode_time)))
+                # print('max_encode_time:', max(self.encode_time))
+                # print('min_encode_time:', min(self.encode_time))
+
                 # 记录吞吐量
                 self.cal_ttl()
-                print('dropid history: ', self.dropid_save, len(self.dropid_save))
-                print('throughout put: ', self.throughout_put, len(self.throughout_put))
+                # print('dropid history: ', self.dropid_save, len(self.dropid_save))
+                print('drops_per_sec: ', self.throughout_put, len(self.throughout_put))
                 res = pd.DataFrame({'dropid_history':self.dropid_save,  
                 'drops_per_sec':self.throughout_put
                 })
                 res.to_csv(('data_save/Send_ttl'+ '_' + time.asctime().replace(' ', '_').replace(':', '_') + '.csv'),  mode='a')
                 break
-               
-            time.sleep(0.1) #发包间隔
+            encode_t1 = time.time()
+            self.encode_time.append(encode_t1 - encode_t0)
+            time.sleep(0.09) #发包间隔
 
     # 定时器线程每隔1s记录发包数,即吞吐量
     def save_throughout_put(self):
@@ -246,27 +257,27 @@ class Sender:
                 now = time.time()
                 usetime = now - start
 
-            data_str = str(data_rec)
-            idx = data_str.find('Received String: ')
-            if idx>=0:
-                msg_str = data_str[idx+17:]
-                msg_bytes = bytes(msg_str, encoding="utf-8")
+            # data_str = str(data_rec)
+            # idx = data_str.find('Received String: ')
+            # if idx>=0:
+            #     msg_str = data_str[idx+17:]
+            #     msg_bytes = bytes(msg_str, encoding="utf-8")
 
-            # msg_bytes = data_rec
-                # 接收完成
-                if msg_bytes[:2] == b'#$':
+            msg_bytes = data_rec
+            # 接收完成
+            if msg_bytes[:2] == b'#$':
+                self.recvdone_ack = True
+            # 进度包    
+            elif msg_bytes[:2] == b'$#':
+                self.fountain.all_at_once = True
+                process_recv = self.get_process_from_feedback(msg_bytes)
+                if process_recv==[]:
                     self.recvdone_ack = True
-                # 进度包    
-                elif msg_bytes[:2] == b'$#':
-                    self.fountain.all_at_once = True
-                    process_recv = self.get_process_from_feedback(msg_bytes)
-                    if process_recv==[]:
-                        self.recvdone_ack = True
-                    else:
-                        self.chunk_process = process_recv
-                        self.fountain.chunk_process =  self.chunk_process
-                        self.fountain.feedback_idx = self.feedback_num
-                        self.feedback_num += 1
+                else:
+                    self.chunk_process = process_recv
+                    self.fountain.chunk_process =  self.chunk_process
+                    self.fountain.feedback_idx = self.feedback_num
+                    self.feedback_num += 1
         self.creat_detect_feedback_Timer()
 
     def creat_detect_feedback_Timer(self):

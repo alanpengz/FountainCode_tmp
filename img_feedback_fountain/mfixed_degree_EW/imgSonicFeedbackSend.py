@@ -133,8 +133,8 @@ class Sender:
         self.fountain = self.fountain_builder()
         self.show_info()
 
-    def compose_rgb(self, file_list, each_chunk_bit_size=4000):                          # each_chunk_bit_size=2500, len(m_byte)不等于240000/8=30000
-        '''                                                                             # each_chunk_bit_size=4000，m_byte=30000，fountain_chunk_size设置成能被30000整除，每个块长度一样，方便异或
+    def compose_rgb(self, file_list, each_chunk_bit_size=1):                          # (应该设置为1)each_chunk_bit_size=4000，m_byte=30000，fountain_chunk_size设置成能被30000整除，每个块长度一样，方便异或
+        '''                                                                              
         将三个文件和并为一个文件
         '''
         m_list = []
@@ -142,7 +142,7 @@ class Sender:
         m_list.append(file_to_code(file_list[1]))
         m_list.append(file_to_code(file_list[2]))
 
-        m_bytes = b''
+        m_bits_list = []
         print('r bitstream len:', len(m_list[0]))
         print('g bitstream len:', len(m_list[1]))
         print('b bitstream len:', len(m_list[2]))
@@ -153,11 +153,13 @@ class Sender:
             start = i * each_chunk_bit_size
             end = min((i + 1) * each_chunk_bit_size, len(m_list[0]))
 
-            m_bytes += m_list[0][start: end].tobytes()
-            m_bytes += m_list[1][start: end].tobytes()
-            m_bytes += m_list[2][start: end].tobytes()
+            m_bits_list.append(m_list[0][start: end])
+            m_bits_list.append(m_list[1][start: end])
+            m_bits_list.append(m_list[2][start: end])
 
-        print('compose_rgb bytes len(m):', len(m_bytes))  # r,g,b(size)+...+
+        m_bits = bitarray.bitarray(m_bits_list)
+        m_bytes = m_bits.tobytes()
+        print('compose_rgb bytes len(m):', len(m_bytes))
         return m_bytes
 
     def fountain_builder(self):
@@ -204,7 +206,7 @@ class Sender:
                 # 记录吞吐量
                 self.cal_ttl()
                 print('dropid history: ', self.dropid_save, len(self.dropid_save))
-                print('throughout put: ', self.throughout_put, len(self.throughout_put))
+                print('drops_per_sec: ', self.throughout_put, len(self.throughout_put))
                 res = pd.DataFrame({'dropid_history':self.dropid_save,  
                 'drops_per_sec':self.throughout_put
                 })

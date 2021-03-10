@@ -93,10 +93,10 @@ class Sender:
                  bus,
                  device,
                  imgsend = IMG_PATH,
-                 fountain_chunk_size=200,          
+                 fountain_chunk_size=215,          
                  seed=None,
-                 w1_size=0.1,
-                 w1_pro=0.086):
+                 w1_size=0.6,
+                 w1_pro=0.6):
         self.spiSend = spidev.SpiDev()
         self.spiSend.open(bus, device)
         self.spiSend.max_speed_hz = 6250000 #976000
@@ -109,21 +109,21 @@ class Sender:
         spi_init()
 
         self.w1_size = w1_size
-        self.w1_pro = w1_pro
+        self.w1_p = w1_pro
         self.imgsend = imgsend
         self.dropid = 0
         self.fountain_chunk_size = fountain_chunk_size
         self.seed = seed
         self.recvdone_ack = False
-        self.fountain_type = 'normal'
+        self.fountain_type = 'ew'
 
-        with open(self.imgsend, 'rb') as f:
-            self.m = f.read()
+        # with open(self.imgsend, 'rb') as f:
+        #     self.m = f.read()
 
-        # temp_file = './imgSend/lena.png'
-        # rgb_list = ['r', 'g', 'b']
-        # temp_file_list = [temp_file + '_' + ii for ii in rgb_list]
-        # self.m = self.compose_rgb(temp_file_list)
+        temp_file = './imgSend/lena.png'
+        rgb_list = ['r', 'g', 'b']
+        temp_file_list = [temp_file + '_' + ii for ii in rgb_list]
+        self.m = self.compose_rgb(temp_file_list)
         self.fountain = self.fountain_builder()
         self.show_info()
 
@@ -160,8 +160,8 @@ class Sender:
         elif self.fountain_type == 'ew':
             return EW_Fountain(self.m,
                                chunk_size=self.fountain_chunk_size,
-                               w1_size=self.w1_p,
-                               w1_pro=self.w1_pro,
+                               w1_size=self.w1_size,
+                               w1_pro=self.w1_p,
                                seed=self.seed)
 
     def show_info(self):
@@ -212,7 +212,7 @@ if __name__ == '__main__':
     # with open('./imgSend/lena.bmp', 'rb') as f:
     #     m = f.read()
     
-    # mm = m[0:round(len(m)*0.15)]
+    # mm = m[0:round(len(m)*0.6)]
     # with open('img_recv.png', 'wb') as ff:
     #     ff.write(mm)
 

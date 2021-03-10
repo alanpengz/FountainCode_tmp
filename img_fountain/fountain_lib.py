@@ -220,7 +220,7 @@ class Fountain(object):
 
     def show_info(self):
         logging.info('Fountain info')
-        logging.info('data len: {}'.format(len(self.data)))
+        # logging.info('data len: {}'.format(len(self.data)))
         logging.info('chunk_size: {}'.format(self.chunk_size))
         logging.info('num_chunks: {}'.format(self.num_chunks))
 

@@ -206,8 +206,6 @@ class Receiver:
                 print("Feedback idx: ", self.feedback_idx)
                 self.feedback_idx += 1
 
-
-
     def send_recv_done_ack(self):
         if self.recv_done_flag:
             ack = b'#$\r\n'

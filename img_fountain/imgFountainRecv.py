@@ -137,7 +137,7 @@ class Receiver:
     def add_a_drop(self, d_byte):
         self.drop_id += 1
         drop = self.glass.droplet_from_Bytes(d_byte)           # drop
-        print('drop data len: ', len(drop.data))
+        # print('drop data len: ', len(drop.data))
 
         if self.glass.num_chunks == 0:
             print('init num_chunks : ', drop.num_chunks)
@@ -174,7 +174,7 @@ class Receiver:
                 acklen += 1
             self.spiSend.xfer2(acksend)
             logging.info('Send fountain ACK done')
-            logging.info('Recv packs: ' + str(self.pack_id))
+            # logging.info('Recv packs: ' + str(self.pack_id))
             logging.info('Recv drops: ' + str(self.drop_id))
 
 

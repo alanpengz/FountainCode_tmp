@@ -120,6 +120,7 @@ class Sender:
                 sendbytearray.insert(datalen, 0)
                 datalen += 1
 
+            
             self.spiSend.xfer2(sendbytearray)
             logging.info('chunk_id: '+ str(self.dropid) + ' send done, chunk size: ' + str(self.chunk_size) + ', frame size: ' + str(len(sendbytes)))
             time.sleep(0.001)

@@ -15,7 +15,8 @@ import serial
 import threading
 import RPi.GPIO as GPIO
 import pandas as pd
-
+import numpy as np
+import zlib
 
 LIB_PATH = os.path.dirname(__file__)
 RECV_PATH = os.path.join(LIB_PATH, "imgRecv")
@@ -157,27 +158,31 @@ class Receiver:
         if self.isDone():
             self.t1 = time.time()
             self.recv_done_flag=True
-            print('time used: ', self.t1-self.t0)
+            logging.info('============Recv done===========')
+            logging.info('time used: ' + str(self.t1-self.t0))
+            logging.info('Recv Packets: : ' + str(self.pack_id))
             # 记录吞吐量
             self.cal_ttl()
-            print('packid history: ', self.pack_save, len(self.pack_save))
+            # print('packid history: ', self.pack_save, len(self.pack_save))
             print('packs_per_sec: ', self.pack_per_sec, len(self.pack_per_sec))
-            print('dropid history: ', self.drop_save, len(self.drop_save))
-            print('drops_per_sec: ', self.drop_per_sec, len(self.drop_per_sec))
+            # print('dropid history: ', self.drop_save, len(self.drop_save))
+            # print('drops_per_sec: ', self.drop_per_sec, len(self.drop_per_sec))
             res = pd.DataFrame({'packid_history':self.pack_save,  
             'packs_per_sec':self.pack_per_sec,
             'dropid_history':self.drop_save,  
             'drops_per_sec':self.drop_per_sec
             })
             res.to_csv(('data_save/Send_ttl'+ '_' + time.asctime().replace(' ', '_').replace(':', '_') + '.csv'),  mode='a')
-            self.send_recv_done_ack()
+            t1 = threading.Timer(1.8, self.send_recv_done_ack)
+            t1.start()
+            # self.send_recv_done_ack()
         
         # 反馈
-        n1 = round(0.8*115)
-        n2 = 30
-        if self.drop_id >= n1 and self.recv_done_flag==False:
-            if (self.drop_id - n1)%n2==0:
-                self.send_feedback()
+        # n1 = round(0.8*115)
+        # n2 = 30
+        # if self.drop_id >= n1 and self.recv_done_flag==False:
+        #     if (self.drop_id - n1)%n2==0:
+        #         self.send_feedback()
 
     def get_bits(self):
         bitarray_factory = bitarray.bitarray(endian='big')
@@ -219,18 +224,17 @@ class Receiver:
 
     def send_recv_done_ack(self):
         if self.recv_done_flag:
-            M = b'M\r\n'
-            self.port.write(M)
-            self.port.flushOutput()
-            time.sleep(0.01)
+            # M = b'M\r\n'
+            # self.port.write(M)
+            # self.port.flushOutput()
+            # time.sleep(0.01)
 
             ack = b'#$\r\n'
             acksend = bytearray(ack)
             self.port.write(acksend)
             self.port.flushOutput()
-            logging.info('Send ACK done')
-            logging.info('Recv Packets: : ' + str(self.pack_id))
-            logging.info('Recv drops: ' + str(self.drop_id))
+            # logging.info('Send ACK done')
+            # logging.info('Recv drops: ' + str(self.drop_id))
 
     def send_feedback(self):
         process_bitmap = self.getProcess_bits()
@@ -307,12 +311,80 @@ class Receiver:
         return process_bits
 
 
+def bit2hex(bit_array_source):
+        bit_array = bit_array_source
+        a = len(bit_array) % 4
+        for j in range (0,a):
+            bit_array.append(0)
+        result = b''
+        i = 0
+        while i < len(bit_array):
+            bit4 = bit_array[i:i+4]
+            if(bit4 == [0,0,0,0]):
+                result += b'0'
+            elif(bit4 == [0,0,0,1]):
+                result += b'1'
+            elif(bit4 == [0,0,1,0]):
+                result += b'2'
+            elif(bit4 == [0,0,1,1]):
+                result += b'3'	
+            elif(bit4 == [0,1,0,0]):
+                result += b'4'
+            elif(bit4 == [0,1,0,1]):
+                result += b'5'
+            elif(bit4 == [0,1,1,0]):
+                result += b'6'
+            elif(bit4 == [0,1,1,1]):
+                result += b'7'	
+            elif(bit4 == [1,0,0,0]):
+                result += b'8'
+            elif(bit4 == [1,0,0,1]):
+                result += b'9'
+            elif(bit4 == [1,0,1,0]):
+                result += b'a'
+            elif(bit4 == [1,0,1,1]):
+                result += b'b'	
+            elif(bit4 == [1,1,0,0]):
+                result += b'c'
+            elif(bit4 == [1,1,0,1]):
+                result += b'd'
+            elif(bit4 == [1,1,1,0]):
+                result += b'e'
+            elif(bit4 == [1,1,1,1]):
+                result += b'f'
+            i += 4
+        return result
+
 if __name__ == '__main__':
-    receiver = Receiver(bus=0, device=1, port='/dev/ttyUSB0', baudrate=115200, timeout=1)
-    while True:
-        receiver.begin_to_catch()
-        if receiver.recv_done_flag:
-            img_data = receiver.get_bits()
-            with open(os.path.join("lena_recv_"+time.asctime().replace(' ', '_').replace(':', '_')+".bmp"), 'wb') as f:
-                f.write(img_data)
-            break
+    # receiver = Receiver(bus=0, device=1, port='/dev/ttyUSB1', baudrate=115200, timeout=1)
+    # while True:
+    #     receiver.begin_to_catch()
+    #     if receiver.recv_done_flag:
+    #         img_data = receiver.get_bits()
+    #         with open(os.path.join("lena_recv_"+time.asctime().replace(' ', '_').replace(':', '_')+".bmp"), 'wb') as f:
+    #             f.write(img_data)
+    #         break
+
+    a = [0,1]
+    b = [ii for ii in np.random.choice(a, 500, True)]
+    process_bits = bitarray.bitarray(b)
+    process = process_bits.tobytes()
+    c = process
+    print(b)
+    # c = bit2hex(b)
+    # c = process_bits.to01().encode("utf-8")
+    print(c)
+    
+
+    # str = ("0101010101"*91).encode("utf-8")
+    print("压缩前：" , c)
+    print("压缩前长度：" , len(c))
+    # zlib.compress(message , level)压缩字符串
+    str_compress = zlib.compress(c,9)
+    print("压缩后：" , str_compress)
+    print("压缩后长度：" , len(str_compress))
+
+    # zlib.descompress(message)解压字符串
+    str_descompress = zlib.decompress(str_compress)
+    print("解压：" , str_descompress)
+    print("解压后长度：" , len(str_descompress))

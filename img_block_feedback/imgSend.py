@@ -168,25 +168,23 @@ class Sender:
         self.creatTimer()
         self.creat_detect_feedback_Timer()
         while True:
-            idx = 0
-            local_flag = [0]*self.chunk_num
-            for i in range(0,self.chunk_num):
-                local_flag[i] = self.send_flag[i]
-            print(local_flag)
-            for idx in range (0,self.chunk_num):
-                if local_flag[idx]==0:
-                    a_drop = self.chunk_data(idx)
-                    sendbytes = send_check(a_drop)
-                    sendbytearray = bytearray(sendbytes)
-                    datalen = len(sendbytearray)
-                    while(datalen < 239):
-                        sendbytearray.insert(datalen, 0)
-                        datalen += 1
+            PER = [ii for ii in random.sample(range(115), round(0.06*115))]
+            chunk_id = 0
+            while chunk_id < 115:
+                a_drop = self.chunk_data(chunk_id)    # send
+                sendbytes = send_check(a_drop)
+                sendbytearray = bytearray(sendbytes)
+                datalen = len(sendbytearray)
+                while(datalen < 239):
+                    sendbytearray.insert(datalen, 0)
+                    datalen += 1
 
+                if not chunk_id in PER:
                     self.spiSend.xfer2(sendbytearray)
-                    self.pack_send_num += 1
-                    logging.info('chunk_id: '+ str(idx) + ' feedback_resend done, chunk size: ' + str(self.chunk_size) + ', frame size: ' + str(len(sendbytes)))
-                    time.sleep(0.01)
+                    logging.info('chunk_id: '+ str(chunk_id) + ' send done, chunk size: ' + str(self.chunk_size) + ', frame size: ' + str(len(sendbytearray)))
+                self.pack_send_num += 1
+                chunk_id += 1
+                time.sleep(0.1)
 
                 if(self.recvdone_ack):
                     break
@@ -227,7 +225,6 @@ class Sender:
     def get_process_from_feedback(self, rec_bytes):
         chunk_id = 0
         rec_bytes =  rec_bytes[2:]
-        print('2222',rec_bytes)
         process_bits = self.hex2bit(rec_bytes)
         # process_bits = bitarray.bitarray(endian='big')
         # process_bits.frombytes(rec_bytes[2:])
@@ -236,7 +233,6 @@ class Sender:
             if(process_bits[chunk_id]==1):
                 self.send_flag[chunk_id]=1
             chunk_id += 1
-        #print(self.send_flag)
 	
     def hex2bit(self, hex_source):
         result = []
@@ -288,30 +284,8 @@ class Sender:
                 data_rec += self.port.read_all()
                 now = time.time()
                 usetime = now - start
-            #print('=======',data_rec)
-            
-            idx = 0
-            idx1=0
-            for i in range(0,len(data_rec)):
-                a = data_rec[i:i+8]
-                b = data_rec[i:i+4]
-                if(a == b'Received'):
-                    idx = i+17
-                if(b == b'MFSK'):
-                    idx1 = i-4
-                    break
-            
-            msg_bytes = data_rec[idx:idx1]
-            #print('1111',msg_bytes)
-            #data_str = str(data_rec,encoding="utf-8")
-            #idx = data_str.find('Received String: ')
-            #idx2 = data_str.find('MFSK')
-            #if idx>=0:
-                #msg_str = data_str[idx+17:idx2-7]
-                #msg_bytes = bytes(msg_str, encoding="utf-8")
-                #print(msg_bytes)
 
-            # msg_bytes = data_rec
+            msg_bytes = data_rec
                 # 接收完成
             if msg_bytes[:2] == b'#$':
                 self.recvdone_ack = True

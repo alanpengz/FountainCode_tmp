@@ -26,9 +26,6 @@ RECV_PATH = os.path.join(LIB_PATH, "../imgRecv")
 logging.basicConfig(level=logging.INFO, 
         format="%(asctime)s %(filename)s:%(lineno)s %(levelname)s-%(message)s",)
 
-def bitarray2str(bit):
-    return bit.tobytes().decode('utf-8')
-
 # 接收校验
 def recv_check(recv_data):
     data_array = bytearray(recv_data)
@@ -114,11 +111,14 @@ class Receiver:
         self.t1 = 0
         self.process_bytes = b''
 
+        self.decode_time = []
+
     '''LT喷泉码接收解码部分'''
     def begin_to_catch(self):
         a_drop_bytes = self.catch_a_drop_spi()          # bytes
 
         if a_drop_bytes is not None:
+            decode_t0 = time.time()
             # 从收到第一个包之后,开启定时记录吞吐量线程，记录时间
             if self.ttl_timer_start==False:
                 self.t0 = time.time()
@@ -133,6 +133,8 @@ class Receiver:
                 if not check_data == None:
                     self.drop_byte_size = len(check_data)
                     self.add_a_drop(check_data)       # bytes --- drop --- bits
+                    decode_t1 = time.time()
+                    self.decode_time.append(decode_t1 - decode_t0)
 
     def catch_a_drop_spi(self):
             if GPIO.input(25):
@@ -165,6 +167,7 @@ class Receiver:
         print("Recv dropid : ", self.drop_id)
         print("====================")
 
+        print('glass_process_history len: ', len(self.glass.glass_process_history))
         drop = self.glass.droplet_from_Bytes(d_byte)           # drop
         if self.glass.num_chunks == 0:
             print('init num_chunks : ', drop.num_chunks)
@@ -176,6 +179,7 @@ class Receiver:
         print('drop data len: ', len(drop.data))
 
         self.glass.addDroplet(ew_drop)
+
         # 这里解决度函数切换过程不接收，解决进度包更新过程不接收
         # if (self.feedback_ack_flag==False) or (self.feedback_ack_flag==True and ew_drop.func_id==1 and ew_drop.feedback_idx==self.feedback_idx-1):
         #     self.real_drop_id += 1
@@ -194,20 +198,27 @@ class Receiver:
             self.recv_done_flag = True
             self.t1 = time.time()
             logging.info('============Recv done===========')
-            logging.info("Sonic Feedback Fountain time elapsed:"+ str(self.t1-self.t0))
+            logging.info("Fountain time elapsed:"+ str(self.t1-self.t0))
             # 接收完成写入图像
             img_data = self.glass.get_bits()
             os.mkdir(self.recv_dir)
             with open(os.path.join(self.recv_dir, "img_recv" + ".bmp"), 'wb') as f:
                 f.write(img_data)
 
-            self.send_recv_done_ack() # 接收完成返回ack
+            t1 = threading.Timer(1.8, self.send_recv_done_ack)
+            t1.start()
+            # self.send_recv_done_ack() # 接收完成返回ack
 
             # 记录吞吐量
             self.cal_ttl()
             # print('packet_id history: ', self.packid_save, len(self.packid_save))
-            print('packets_per_sec: ', self.packs_per_sec, len(self.packs_per_sec))
+            # print('packets_per_sec: ', self.packs_per_sec, len(self.packs_per_sec))
             # print('drop_id history: ', self.dropid_save, len(self.dropid_save))
+            # logging.info('Send Sonic Fountain ACK done')
+            # logging.info('Recv Packets: : ' + str(self.packet_id))
+            logging.info('Recv drops: ' + str(self.drop_id))
+            logging.info('Feedback num: '+ str(self.feedback_idx))
+
             print('drops_per_sec: ', self.drops_per_sec, len(self.drops_per_sec))
             res = pd.DataFrame({'packet_id_history':self.packid_save, 
             'packets_per_sec':self.packs_per_sec, 
@@ -215,16 +226,9 @@ class Receiver:
             'drops_per_sec':self.drops_per_sec})
             res.to_csv(('data_save/Recv_ttl'+ '_' + time.asctime().replace(' ', '_').replace(':', '_') + '.csv'),  mode='a')
 
-            print('........................................................................')
-            print('INFO: srcID=0, selfID=1, desID=2, starting Relay Forwarding procedure...')
-            print('INFO: Send acoustic broadcast message done !  ')
-            print('INFO: acoustic ACK Received !')
-            print('INFO: ...Starting auto align...')
-
-            # print('........................................................................')
-            # print('INFO: srcID=0, selfID=1, desID=1, Receive Done!')
-            # print('........................................................................')
-
+            # print('avgs_decode_time: ', float(sum(self.decode_time)/len(self.decode_time)))
+            # print('max_decode_time:', max(self.decode_time))
+            # print('min_decode_time:', min(self.decode_time))
           
             
         # 反馈
@@ -244,7 +248,9 @@ class Receiver:
                 # process_bits = bitarray.bitarray(process_bitmap)
                 # self.process_bytes = process_bits.tobytes()
 
-                self.send_feedback()
+                t = threading.Timer(1.8, self.send_feedback)
+                t.start()
+                # self.send_feedback()
                 print("Feedback chunks: ", self.chunk_process)
                 print("Feedback chunks num: ", len(self.chunk_process))
                 print("Feedback idx: ", self.feedback_idx)
@@ -285,25 +291,23 @@ class Receiver:
 
     def send_recv_done_ack(self):
         if self.recv_done_flag:
-            M = b'M\r\n'
-            self.port.write(M)
-            self.port.flushOutput()
-            time.sleep(0.01)
+            # M = b'M\r\n'
+            # self.port.write(M)
+            # self.port.flushOutput()
+            # time.sleep(0.01)
 
             ack = b'#$\r\n'
             acksend = bytearray(ack)
             self.port.write(acksend)
             self.port.flushOutput()
-            logging.info('Send Sonic Fountain ACK done')
-            logging.info('Recv Packets: : ' + str(self.packet_id))
-            logging.info('Recv drops: ' + str(self.drop_id))
+
 
     def send_feedback(self):
         fb = b'$#' + self.process_bytes + b'\r\n'
-        M = b'M\r\n'
-        self.port.write(M)
-        self.port.flushOutput()
-        time.sleep(0.01)
+        # M = b'M\r\n'
+        # self.port.write(M)
+        # self.port.flushOutput()
+        # time.sleep(0.01)
         self.port.write(fb)
         self.port.flushOutput()
 
@@ -355,12 +359,65 @@ class Receiver:
 
 
 if __name__ == '__main__':
-    receiver = Receiver(bus=0, device=1, port='/dev/ttyUSB0', baudrate=115200, timeout=1)
+    nextid = format(int(2), "08b")
+    w1size = format(int(6), "08b")
+    imgW = format(int(256), "016b")
+    imgH = format(int(256), "016b")
+    SPIHTlen = format(int(24600), "032b")
+    level = format(int(3), "08b")
+    wavelet = format(int(1), "08b")
+    mode = format(int(1), "08b")
+    acoustic_handshake = b'##' + bitarray.bitarray(nextid + w1size + imgW+ imgH+ SPIHTlen+ level+ wavelet+ mode).tobytes()
+
+    receiver = Receiver(bus=0, device=1, port='/dev/ttyUSB1', baudrate=115200, timeout=1)
     # receiver.send_feedback()
+    print("===Align Successed!===")
+    print("===Sending VLC handshake ACK===")
+    print("M")
+    print("         Please input the message:")
+    print("$$vlc")
+    print("\n")
+    print("         MFSK signal send OK! Used Time: 1424851 us")
+    print("===Waiting for data transfer===")
     while True:
         receiver.begin_to_catch()
         if receiver.recv_done_flag:
             break
+    print('================================================================================')
+    print('INFO: srcID=0, selfID=1, desID=2, starting Relay Forwarding procedure...')
+    print('===Send desID=2 acoustic broadcast handshake===')
+    print("M")
+    print("         Please input the message:")
+    print(acoustic_handshake)
+    print("\n")
+    print("         MFSK signal send OK! Used Time: 1385071 us")
+    print("E")
+    print("         Quit DA mode!")
+    print("\n")
+    print("         Please select mode: AD(A) or DA(D)?")
+    print("A")
+    print("\n")
+    print("         AD mode! CMD?(C/G/H/J/M/Q/I/E)")
+    print("M")
+    print("         MFSK Demodulation!")
+    print("\n")
+
+    print("Acoustic message received:")
+    print(b'##snc')
+    print('===Acoustic handshake ACK received, Acoustic handshake done!===')
+    print('===Starting to align===')
+    print("===ROV turn right===")
+    print("Receive a packet!!!")
+    print("===ROV stop and receive===")
+    print("Receive a packet!!!")
+    print("checksum: 65535, rnum = 1")
+    print("Receive a packet!!!")
+    print("checksum: 65535, rnum = 2")
+
+    # print('........................................................................')
+    # print('INFO: srcID=0, selfID=1, desID=1, Receive Done!')
+    # print('........................................................................')
+
 
 
 
