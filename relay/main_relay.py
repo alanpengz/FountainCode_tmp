@@ -32,7 +32,7 @@ class NodeRLY:
     def __init__(self, 
                  portSNC,
                  baudrateSNC,
-                 timeoutSNC
+                 timeoutSNC,
                  portROV,
                  baudrateROV,
                  timeoutROV

@@ -239,7 +239,7 @@ class NodeDES:
         self.port.flushOutput()
 
 
- '''基于水声辅助的光通信链路建立部分'''
+    '''基于水声辅助的光通信链路建立部分'''
     # 等待水声握手，并反馈水声握手ACK
     def wait_acoustic_handshake(self):
         self.acoustic.mfsk_rx_config()
