@@ -20,9 +20,6 @@ RECV_PATH = os.path.join(LIB_PATH, "imgRecv")
 logging.basicConfig(level=logging.INFO, 
         format="%(asctime)s %(filename)s:%(lineno)s %(levelname)s-%(message)s",)
 
-def bitarray2str(bit):
-    return bit.tobytes().decode('utf-8')
-
 # 接收校验
 def recv_check(recv_data):
     data_array = bytearray(recv_data)
@@ -56,7 +53,6 @@ def recv_check(recv_data):
         data_array.pop(0)
     return bytes(data_array)
 
-
 def spi_init():
     GPIO.setmode(GPIO.BCM)
     GPIO.setup(19,GPIO.OUT,initial=GPIO.LOW)
@@ -82,10 +78,10 @@ class Receiver:
         self.drop_id = 0
         self.data_rec = ""
         self.recv_dir = os.path.join(RECV_PATH, time.asctime().replace(' ', '_').replace(':', '_'))
-        self.entries = [[]]*984
+        self.entries = [[]]*984 #初始984个分块，根据发送端进行修改
         self.chunks = []
 
-    '''LT喷泉码接收解码部分'''
+    # 将获取到的一个239字节的数据包进行接收校验，添加进已接收数组
     def begin_to_catch(self):
         a_drop_bytes = self.catch_a_drop_spi()          
 
@@ -97,18 +93,20 @@ class Receiver:
                 self.add_a_drop(check_data) 
             self.drop_id += 1      
 
+    # 获取一个239字节的数据包
     def catch_a_drop_spi(self):
             if GPIO.input(25):
                 spi_recv = self.spiRecv.readbytes(239)
                 rec_bytes = bytes(spi_recv) 
                 frame_len = len(rec_bytes)
-
+                # 去掉发送时补的0
                 if(frame_len > 1):
                     while(rec_bytes[frame_len-1] == 0 and frame_len>=1):
                         frame_len = frame_len - 1
                 rec_bytes = rec_bytes[:frame_len]
 
                 self.data_rec = rec_bytes
+                # 判断帧结构
                 if self.data_rec[0:2] == b'##' and self.data_rec[frame_len - 2:frame_len] == b'$$':
                     data_array = bytearray(self.data_rec)
                     data_array.pop(0)
@@ -119,6 +117,7 @@ class Receiver:
                 else:
                     print('Wrong receive frame !')
 
+    # 对接收到的数据包进行解析成[chunk_id, chunk_data]，添加进已接受数组
     def add_a_drop(self, d_bytes):
         byte_factory = bitarray.bitarray(endian='big')
         byte_factory.frombytes(d_bytes[0:2])
@@ -129,9 +128,9 @@ class Receiver:
 
         logging.info('chunk_id: '+ str(chunk_id) + ' received, chunk_size: ' + str(len(chunk_data)))
 
+    # 对接收到的数据进行合并、统计
     def get_bits(self):
         bitarray_factory = bitarray.bitarray(endian='big')
-
         cnt = 0
         for entry in self.entries:
             if entry == []:
@@ -139,10 +138,10 @@ class Receiver:
                 cnt += 1
             else:
                 tmp = bitarray_factory.frombytes(entry[1])
-        
         print('Received num: ', 984-cnt)
         return bitarray_factory
   
+
 
 if __name__ == '__main__':
     receiver = Receiver(bus=0, device=1)
@@ -150,6 +149,7 @@ if __name__ == '__main__':
     while True:
         now = time.time()
         receiver.begin_to_catch()
+        # 18秒后接收完成（由于没有接收完成的ack，所以设置一段时间后认为接收完成），写入文件
         if now - start > 18:
             img_data = receiver.get_bits()
             with open(os.path.join("lena_recv_"+time.asctime().replace(' ', '_').replace(':', '_')+".bmp"), 'wb') as f:

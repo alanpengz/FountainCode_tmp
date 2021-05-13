@@ -20,9 +20,6 @@ IMG_PATH = os.path.join(LIB_PATH, 'lena.bmp')
 logging.basicConfig(level=logging.INFO, 
         format="%(asctime)s %(filename)s:%(lineno)s %(levelname)s-%(message)s",)
 
-def bitarray2str(bit):
-    return bit.tobytes()
-
 # 添加校验和、帧头
 def send_check(send_bytes):
     data_array = bytearray(send_bytes)
@@ -61,9 +58,7 @@ def send_check(send_bytes):
     data_array.insert(len(data_array), frame_end[1])
     return bytes(data_array)
 
-def bits2string(b):
-    return ''.join(chr(int(''.join(x), 2)) for x in zip(*[iter(b)]*8))
-
+# spi初始化，这里GPIO为BCM模式，与Qt中相同的管脚标号会不一样
 def spi_init():
     GPIO.setmode(GPIO.BCM)
     GPIO.setup(19,GPIO.OUT,initial=GPIO.LOW)
@@ -99,7 +94,8 @@ class Sender:
         self.chunk_num = ceil(len(self.m)/self.chunk_size)
         print('chunks_num: ', self.chunk_num)
 
-
+    # 获取第num块的数据
+    # 返回：chunk_id + chunk_data，比特流
     def chunk_data(self, num):
         start = self.chunk_size * num
         end = min(self.chunk_size * (num+1), len(self.m))
@@ -107,29 +103,27 @@ class Sender:
 
         return bitarray.bitarray(chunk_id_bits).tobytes() + self.m[start:end]
 
-
     def send_drops_spi(self):
         s = time.time()
         while True:
-            # 发送一帧补0到239字节
             a_drop = self.chunk_data(self.dropid)
             sendbytes = send_check(a_drop)
             sendbytearray = bytearray(sendbytes)
+            # 发送一帧补0到239字节
             datalen = len(sendbytearray)
             while(datalen < 239):
                 sendbytearray.insert(datalen, 0)
                 datalen += 1
 
-            
             self.spiSend.xfer2(sendbytearray)
             logging.info('chunk_id: '+ str(self.dropid) + ' send done, chunk size: ' + str(self.chunk_size) + ', frame size: ' + str(len(sendbytes)))
-            time.sleep(0.001)
+            time.sleep(0.001) #发包间隔
             self.dropid += 1
 
             if(self.dropid >= self.chunk_num):
                 ss = time.time()
                 logging.info('============Send Done===========')
-                print(ss-s)
+                print('send time used :', ss-s)
                 break
 
 if __name__ == '__main__':

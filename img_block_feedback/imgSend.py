@@ -32,9 +32,6 @@ def file_to_code(file_name):
     fin.close()
     return read_bits
 
-def bitarray2str(bit):
-    return bit.tobytes()
-
 # 添加校验和、帧头
 def send_check(send_bytes):
     data_array = bytearray(send_bytes)
@@ -72,9 +69,6 @@ def send_check(send_bytes):
     data_array.insert(len(data_array), frame_end[0])
     data_array.insert(len(data_array), frame_end[1])
     return bytes(data_array)
-
-def bits2string(b):
-    return ''.join(chr(int(''.join(x), 2)) for x in zip(*[iter(b)]*8))
 
 def spi_init():
     GPIO.setmode(GPIO.BCM)
@@ -131,8 +125,8 @@ class Sender:
         self.chunk_num = ceil(len(self.m)/self.chunk_size)
         print('chunk_nums: ', self.chunk_num)
 
-    def compose_rgb(self, file_list, each_chunk_bit_size=4000):                          # each_chunk_bit_size=2500, len(m_byte)不等于240000/8=30000
-        '''                                                                             # each_chunk_bit_size=4000，m_byte=30000，fountain_chunk_size设置成能被30000整除，每个块长度一样，方便异或
+    def compose_rgb(self, file_list, each_chunk_bit_size=4000):                         
+        '''
         将三个文件和并为一个文件
         '''
         m_list = []

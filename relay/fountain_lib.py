@@ -485,42 +485,4 @@ class Glass:
 
 
 if __name__ == "__main__":
-    # nextid = format(int(1), "08b")
-    # w1size = format(int(6), "08b")
-    # imgW = format(int(256), "016b")
-    # imgH = format(int(256), "016b")
-    # SPIHTlen = format(int(24600), "032b")
-    # level = format(int(3), "08b")
-    # wavelet = format(int(1), "08b")
-    # mode = format(int(1), "08b")
-
-    # byte = bitarray.bitarray(nextid + w1size + imgW+ imgH+ SPIHTlen+ level+ wavelet+ mode).tobytes()
-    # print(byte)
-
-    # recv_str = str(byte, encoding="utf-8")
-    # print(recv_str)
-
-    # byte = bytes(recv_str, encoding="utf-8")
-
-    # byte_factory = bitarray.bitarray(endian='big')
-    # byte_factory.frombytes(byte[0:1])
-    # nextids = int(byte_factory.to01(), base=2)
-
-    # byte_factory1 = bitarray.bitarray(endian='big')
-    # byte_factory1.frombytes(byte[1:2])
-    # w1sizes = int(byte_factory1.to01(), base=2)
-
-    # byte_factory3 = bitarray.bitarray(endian='big')
-    # byte_factory3.frombytes(byte[2:4])
-    # imgWs = int(byte_factory3.to01(), base=2)
-
-    # byte_factory4 = bitarray.bitarray(endian='big')
-    # byte_factory4.frombytes(byte[4:6])
-    # imgHs = int(byte_factory4.to01(), base=2)
-
-    # byte_factory5 = bitarray.bitarray(endian='big')
-    # byte_factory5.frombytes(byte[6:10])
-    # SPIHTlens = int(byte_factory5.to01(), base=2)
-
-    # print(nextids,w1sizes,imgWs,imgHs,SPIHTlens)
     pass

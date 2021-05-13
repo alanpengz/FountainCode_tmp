@@ -99,33 +99,41 @@ class Acoustic:
 
         byte_factory1 = bitarray.bitarray(endian='big')
         byte_factory1.frombytes(msg_byte[1:2])
-        w1size = int(byte_factory1.to01(), base=2)
+        srcid = int(byte_factory1.to01(), base=2)
 
         byte_factory2 = bitarray.bitarray(endian='big')
-        byte_factory2.frombytes(msg_byte[2:4])
-        imgW = int(byte_factory2.to01(), base=2)
+        byte_factory2.frombytes(msg_byte[2:3])
+        desid = int(byte_factory2.to01(), base=2)
 
         byte_factory3 = bitarray.bitarray(endian='big')
-        byte_factory3.frombytes(msg_byte[4:6])
-        imgH = int(byte_factory3.to01(), base=2)
+        byte_factory3.frombytes(msg_byte[3:4])
+        w1size = int(byte_factory3.to01(), base=2)
 
         byte_factory4 = bitarray.bitarray(endian='big')
-        byte_factory4.frombytes(msg_byte[6:10])
-        SPIHTlen = int(byte_factory4.to01(), base=2)
+        byte_factory4.frombytes(msg_byte[4:6])
+        imgW = int(byte_factory4.to01(), base=2)
 
         byte_factory5 = bitarray.bitarray(endian='big')
-        byte_factory5.frombytes(msg_byte[6:10])
-        level = int(byte_factory5.to01(), base=2)
+        byte_factory5.frombytes(msg_byte[6:8])
+        imgH = int(byte_factory5.to01(), base=2)
 
         byte_factory6 = bitarray.bitarray(endian='big')
-        byte_factory6.frombytes(msg_byte[6:10])
-        wavelet = int(byte_factory6.to01(), base=2)
+        byte_factory6.frombytes(msg_byte[8:12])
+        SPIHTlen = int(byte_factory6.to01(), base=2)
 
         byte_factory7 = bitarray.bitarray(endian='big')
-        byte_factory7.frombytes(msg_byte[6:10])
-        mode = int(byte_factory7.to01(), base=2)
+        byte_factory7.frombytes(msg_byte[12:13])
+        level = int(byte_factory7.to01(), base=2)
 
-        var.extend[nextid, w1size, imgW, imgH, SPIHTlen, level, wavelet, mode] 
+        byte_factory8 = bitarray.bitarray(endian='big')
+        byte_factory8.frombytes(msg_byte[13:14])
+        wavelet = int(byte_factory8.to01(), base=2)
+
+        byte_factory9 = bitarray.bitarray(endian='big')
+        byte_factory9.frombytes(msg_byte[14:15])
+        mode = int(byte_factory9.to01(), base=2)
+
+        var.extend[nextid, srcid, desid, w1size, imgW, imgH, SPIHTlen, level, wavelet, mode] 
         return var
 
 

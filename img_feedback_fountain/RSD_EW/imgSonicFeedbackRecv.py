@@ -87,8 +87,8 @@ class Receiver:
         spi_init()
         self.port = serial.Serial(port, baudrate)
 
-        self.packet_id = 0
-        self.drop_id = 0
+        self.packet_id = 0  # 数据包数量
+        self.drop_id = 0    # 校验正确的有效数据包数量
         self.real_drop_id = 0 # dropid除去度函数切换和进度包更新时收到的drop
         self.glass = Glass(0)
         self.chunk_size = 0
@@ -100,6 +100,7 @@ class Receiver:
         self.data_rec = ""
         self.recv_dir = os.path.join(RECV_PATH, time.asctime().replace(' ', '_').replace(':', '_'))
         
+        # 吞吐量统计
         self.packid_save = []
         self.dropid_save = []
         self.valid_dropid_save = []
@@ -109,9 +110,9 @@ class Receiver:
         self.ttl_timer_start=False
         self.t0 = 0
         self.t1 = 0
-        self.process_bytes = b''
 
-        self.decode_time = []
+        self.process_bytes = b''
+        self.decode_time = [] # 用于统计每个编码包的译码时间
 
     '''LT喷泉码接收解码部分'''
     def begin_to_catch(self):
@@ -128,7 +129,7 @@ class Receiver:
             self.packet_id += 1
             print("Recv Packet id : ", self.packet_id)
             if len(a_drop_bytes) > 0:
-                check_data = recv_check(a_drop_bytes)
+                check_data = recv_check(a_drop_bytes) # 接收校验
                 
                 if not check_data == None:
                     self.drop_byte_size = len(check_data)
@@ -143,6 +144,7 @@ class Receiver:
                 frame_len = len(rec_bytes)
                 print("framelen: ", frame_len)
 
+                # 去掉末尾补充的0
                 if(frame_len > 1):
                     while(rec_bytes[frame_len-1] == 0 and frame_len>=1):
                         frame_len = frame_len - 1
@@ -150,6 +152,7 @@ class Receiver:
                 print("droplen: ", frame_len)
 
                 self.data_rec = rec_bytes
+                # 判断帧头帧尾
                 if self.data_rec[0:2] == b'##' and self.data_rec[frame_len - 2:frame_len] == b'$$':
                     data_array = bytearray(self.data_rec)
                     data_array.pop(0)
@@ -168,7 +171,7 @@ class Receiver:
         print("====================")
 
         print('glass_process_history len: ', len(self.glass.glass_process_history))
-        drop = self.glass.droplet_from_Bytes(d_byte)           # drop
+        drop = self.glass.droplet_from_Bytes(d_byte)            # drop
         if self.glass.num_chunks == 0:
             print('init num_chunks : ', drop.num_chunks)
             self.glass = Glass(drop.num_chunks)                 # 初始化接收glass
@@ -205,17 +208,20 @@ class Receiver:
             with open(os.path.join(self.recv_dir, "img_recv" + ".bmp"), 'wb') as f:
                 f.write(img_data)
 
+            # 串口模拟水声延迟进行反馈
             t1 = threading.Timer(1.8, self.send_recv_done_ack)
             t1.start()
+
+            # 实际写入水声通信机进行反馈
             # self.send_recv_done_ack() # 接收完成返回ack
 
             # 记录吞吐量
             self.cal_ttl()
-            # print('packet_id history: ', self.packid_save, len(self.packid_save))
-            # print('packets_per_sec: ', self.packs_per_sec, len(self.packs_per_sec))
-            # print('drop_id history: ', self.dropid_save, len(self.dropid_save))
-            # logging.info('Send Sonic Fountain ACK done')
-            # logging.info('Recv Packets: : ' + str(self.packet_id))
+            print('packet_id history: ', self.packid_save, len(self.packid_save))
+            print('packets_per_sec: ', self.packs_per_sec, len(self.packs_per_sec))
+            print('drop_id history: ', self.dropid_save, len(self.dropid_save))
+            logging.info('Send Sonic Fountain ACK done')
+            logging.info('Recv Packets: : ' + str(self.packet_id))
             logging.info('Recv drops: ' + str(self.drop_id))
             logging.info('Feedback num: '+ str(self.feedback_idx))
 
@@ -242,14 +248,17 @@ class Receiver:
                 self.glass.glass_process_history.append(self.chunk_process)
                 # 用于实际反馈
                 process_bitmap = process[1]
-                self.process_bytes = self.bit2hex(process_bitmap)
-                print(process_bitmap)
-                print(self.process_bytes)
-                # process_bits = bitarray.bitarray(process_bitmap)
-                # self.process_bytes = process_bits.tobytes()
+                # self.process_bytes = self.bit2hex(process_bitmap) # 实际水声通信机反馈可能需要用到这个
+                # print(process_bitmap)
+                # print(self.process_bytes)
+                process_bits = bitarray.bitarray(process_bitmap)
+                self.process_bytes = process_bits.tobytes()
 
+                # 串口模拟水声延迟进行反馈
                 t = threading.Timer(1.8, self.send_feedback)
                 t.start()
+
+                # 实际写入水声通信机进行反馈
                 # self.send_feedback()
                 print("Feedback chunks: ", self.chunk_process)
                 print("Feedback chunks num: ", len(self.chunk_process))
@@ -288,7 +297,7 @@ class Receiver:
                 self.drops_per_sec.append(self.dropid_save[idx]-self.dropid_save[idx-1])
             idx += 1
         
-
+    # 串口发送译码完成ack
     def send_recv_done_ack(self):
         if self.recv_done_flag:
             # M = b'M\r\n'
@@ -301,7 +310,7 @@ class Receiver:
             self.port.write(acksend)
             self.port.flushOutput()
 
-
+    # 串口反馈译码进度
     def send_feedback(self):
         fb = b'$#' + self.process_bytes + b'\r\n'
         # M = b'M\r\n'
@@ -359,65 +368,11 @@ class Receiver:
 
 
 if __name__ == '__main__':
-    nextid = format(int(2), "08b")
-    w1size = format(int(6), "08b")
-    imgW = format(int(256), "016b")
-    imgH = format(int(256), "016b")
-    SPIHTlen = format(int(24600), "032b")
-    level = format(int(3), "08b")
-    wavelet = format(int(1), "08b")
-    mode = format(int(1), "08b")
-    acoustic_handshake = b'##' + bitarray.bitarray(nextid + w1size + imgW+ imgH+ SPIHTlen+ level+ wavelet+ mode).tobytes()
-
     receiver = Receiver(bus=0, device=1, port='/dev/ttyUSB1', baudrate=115200, timeout=1)
-    # receiver.send_feedback()
-    print("===Align Successed!===")
-    print("===Sending VLC handshake ACK===")
-    print("M")
-    print("         Please input the message:")
-    print("$$vlc")
-    print("\n")
-    print("         MFSK signal send OK! Used Time: 1424851 us")
-    print("===Waiting for data transfer===")
     while True:
         receiver.begin_to_catch()
         if receiver.recv_done_flag:
             break
-    print('================================================================================')
-    print('INFO: srcID=0, selfID=1, desID=2, starting Relay Forwarding procedure...')
-    print('===Send desID=2 acoustic broadcast handshake===')
-    print("M")
-    print("         Please input the message:")
-    print(acoustic_handshake)
-    print("\n")
-    print("         MFSK signal send OK! Used Time: 1385071 us")
-    print("E")
-    print("         Quit DA mode!")
-    print("\n")
-    print("         Please select mode: AD(A) or DA(D)?")
-    print("A")
-    print("\n")
-    print("         AD mode! CMD?(C/G/H/J/M/Q/I/E)")
-    print("M")
-    print("         MFSK Demodulation!")
-    print("\n")
-
-    print("Acoustic message received:")
-    print(b'##snc')
-    print('===Acoustic handshake ACK received, Acoustic handshake done!===')
-    print('===Starting to align===')
-    print("===ROV turn right===")
-    print("Receive a packet!!!")
-    print("===ROV stop and receive===")
-    print("Receive a packet!!!")
-    print("checksum: 65535, rnum = 1")
-    print("Receive a packet!!!")
-    print("checksum: 65535, rnum = 2")
-
-    # print('........................................................................')
-    # print('INFO: srcID=0, selfID=1, desID=1, Receive Done!')
-    # print('........................................................................')
-
 
 
 

@@ -36,9 +36,6 @@ def file_to_code(file_name):
     fin.close()
     return read_bits
 
-def bitarray2str(bit):
-    return bit.tobytes()
-
 # 添加校验和、帧头
 def send_check(send_bytes):
     data_array = bytearray(send_bytes)
@@ -77,15 +74,14 @@ def send_check(send_bytes):
     data_array.insert(len(data_array), frame_end[1])
     return bytes(data_array)
 
-def bits2string(b):
-    return ''.join(chr(int(''.join(x), 2)) for x in zip(*[iter(b)]*8))
-
 def spi_init():
     GPIO.setmode(GPIO.BCM)
     GPIO.setup(19,GPIO.OUT,initial=GPIO.LOW)
     GPIO.setup(25,GPIO.IN)
     GPIO.setup(26,GPIO.OUT,initial=GPIO.LOW)
     GPIO.output(26,GPIO.HIGH)
+
+
 
 class Sender:
     def __init__(self,
@@ -96,7 +92,7 @@ class Sender:
                  timeout,
                  imgsend = IMG_PATH,
                  fountain_chunk_size=215,
-                 fountain_type = 'normal',
+                 fountain_type = 'ew',
                  ):
         self.spiSend = spidev.SpiDev()
         self.spiSend.open(bus, device)
@@ -125,9 +121,11 @@ class Sender:
 
         self.encode_time = []
 
+        # 直接选择图像进行发送
         # with open(self.imgsend, 'rb') as f:
         #     self.m = f.read()
 
+        # 读三通道压缩比特流文件，并串转换成待发送比特流
         temp_file = '../imgSend/lena.png'
         rgb_list = ['r', 'g', 'b']
         temp_file_list = [temp_file + '_' + ii for ii in rgb_list]
@@ -137,7 +135,7 @@ class Sender:
 
     def compose_rgb(self, file_list, each_chunk_bit_size=1):                          # (应该设置为1)each_chunk_bit_size=4000，m_byte=30000，fountain_chunk_size设置成能被30000整除，每个块长度一样，方便异或
         '''                                                                              
-        将三个文件和并为一个文件
+        将三个文件和并为一个文件，三通道合并
         '''
         m_list = []
         m_list.append(file_to_code(file_list[0]))  # 不用file_to_code()                             bitaray
@@ -183,16 +181,17 @@ class Sender:
         # 主线程
         while True:
             self.dropid += 1
- 
             # 发送一帧补0到239字节
             encode_t0 = time.time()
             sendbytes = send_check(self.a_drop())
             sendbytearray = bytearray(sendbytes)
             datalen = len(sendbytearray)
+            # 补0到239字节
             while(datalen < 239):
                 sendbytearray.insert(datalen, 0)
                 datalen += 1
 
+            # 丢包率0.04
             if self.dropid % 29 !=0:
                 self.spiSend.xfer2(sendbytearray)
             print("====================")
@@ -257,6 +256,7 @@ class Sender:
                 now = time.time()
                 usetime = now - start
 
+            # 实际水声通信机使用这里
             # data_str = str(data_rec)
             # idx = data_str.find('Received String: ')
             # if idx>=0:
@@ -290,11 +290,11 @@ class Sender:
         process = []
         chunk_id = 0
         rec_bytes = rec_bytes[2:]
-        process_bits = self.hex2bit(rec_bytes)
-        print(rec_bytes)
-        print(process_bits)
-        # process_bits = bitarray.bitarray(endian='big')
-        # process_bits.frombytes(rec_bytes[2:])
+        # process_bits = self.hex2bit(rec_bytes) # 实际水声通信机使用这里
+        # print(rec_bytes)
+        # print(process_bits)
+        process_bits = bitarray.bitarray(endian='big')
+        process_bits.frombytes(rec_bytes[2:])
         while chunk_id < self.fountain.num_chunks:
             if(process_bits[chunk_id]==False):
                 process.append(chunk_id)

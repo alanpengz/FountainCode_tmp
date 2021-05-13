@@ -35,7 +35,7 @@ class NodeSRC:
                  desID,
                  imgsend = IMG_PATH,
                  fountain_chunk_size=215,
-                 fountain_type = 'normal',
+                 fountain_type = 'ew',
                  ):
         self.ID = 0                 #本节点id
         self.routing_table = [0,1,2]#路由
@@ -245,6 +245,8 @@ class NodeSRC:
         id = self.find_next_id()
         if id is not None:
             nextid = format(int(id), "08b")
+            srcid = format(int(self.ID), "08b")
+            desid = format(int(self.desID), "08b")
             w1size = format(int(6), "08b")
             imgW = format(int(256), "016b")
             imgH = format(int(256), "016b")
@@ -252,7 +254,7 @@ class NodeSRC:
             level = format(int(3), "08b")
             wavelet = format(int(1), "08b") # 1代表bior4.4
             mode = format(int(1), "08b")    # 1代表periodization
-            acoustic_handshake = b'##' + bitarray.bitarray(nextid + w1size + imgW+ imgH+ SPIHTlen+ level+ wavelet+ mode).tobytes()
+            acoustic_handshake = b'##' + bitarray.bitarray(nextid + srcid + desid + w1size + imgW+ imgH+ SPIHTlen+ level+ wavelet+ mode).tobytes()
             # 切换成发送模式，发送水声握手包
             self.acoustic.mfsk_tx_config()
             self.acoustic.mfsk_tx(acoustic_handshake)

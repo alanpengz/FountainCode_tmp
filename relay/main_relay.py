@@ -258,6 +258,7 @@ class NodeRLY:
     '''基于水声辅助的光通信链路建立部分'''
     # 等待水声握手，并反馈水声握手ACK
     def wait_acoustic_handshake(self):
+        print("===...waiting for connection...===")
         self.acoustic.mfsk_rx_config()
         while True:
             str_recv = self.acoustic.mfsk_rx()
@@ -380,6 +381,8 @@ class NodeRLY:
         id = self.find_next_id()
         if id is not None:
             nextid = format(int(id), "08b")
+            srcid = format(int(0), "08b")
+            desid = format(int(2), "08b")
             w1size = format(int(6), "08b")
             imgW = format(int(256), "016b")
             imgH = format(int(256), "016b")
@@ -387,7 +390,7 @@ class NodeRLY:
             level = format(int(3), "08b")
             wavelet = format(int(1), "08b") # 1代表bior4.4
             mode = format(int(1), "08b")    # 1代表periodization
-            acoustic_handshake = b'##' + bitarray.bitarray(nextid + w1size + imgW+ imgH+ SPIHTlen+ level+ wavelet+ mode).tobytes()
+            acoustic_handshake = b'##' + bitarray.bitarray(nextid + srcid + desid + w1size + imgW+ imgH+ SPIHTlen+ level+ wavelet+ mode).tobytes()
             # 切换成发送模式，发送水声握手包
             print('===Send desID=2 acoustic broadcast handshake===')
             self.acoustic.mfsk_tx_config()

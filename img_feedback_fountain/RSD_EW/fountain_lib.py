@@ -63,7 +63,8 @@ def x_o_r(bytes1, bytes2):  # 传入两个数，并返回它们的异或结果�
     return result_bytes
 
 
-# 度分布函数
+'''度分布函数'''
+# 理想孤波分布ISD
 def soliton(K):
     ''' 理想弧波函数 '''
     d = [ii + 1 for ii in range(K)]
@@ -72,6 +73,7 @@ def soliton(K):
         # i = np.random.choice(d, 1, False, d_f)[0]
         yield np.random.choice(d, 1, False, d_f)[0]
 
+# 鲁棒孤波分布RSD
 def robust_soliton(K, c= 0.03, delta= 0.05):
     # c是自由变量，delta是接收到M个确知数据包后无法译码的概率极限。c确定时delta越大R越小
     ''' 鲁棒理想弧波函数 '''
@@ -92,14 +94,15 @@ def robust_soliton(K, c= 0.03, delta= 0.05):
         # i = np.random.choice(d, 1, False, u_d_f)[0]
         yield np.random.choice(d, 1, False, u_d_f)[0]             # 返回一个度值
 
+# 固定度分布（Shokrollahi, 5.78）
 def fixed_degree_distribution_func():
-#'''Shokrollahi, 5.78'''
     d = [1, 2, 3, 4, 5, 8, 9, 19, 65, 66]
     d_f = [0.007969, 0.49357, 0.16622, 0.072646, 0.082558, 0.056058, 0.037229, 0.05559, 0.025023, 0.003137]
     while True:
         i = np.random.choice(d, 1, False, d_f)[0]
         yield i
 
+# 泊松分布
 def poisson_func(k):
     d = [1, 2, 3, 4, 5, 8, 9, 19, 65, 66]
     tmp = 1.0 / (k * log(k))
@@ -107,12 +110,14 @@ def poisson_func(k):
     while True:
         yield np.random.choice(d, 1, False, d_f)[0]
 
+# 二进制指数分布
 def binary_exp_func(k):
     d = [ii + 1 for ii in range(k)] 
     d_f = [1.0 / 2**(k-1) if ii == k else 1.0 / (2 ** ii) for ii in d]
     while True:
         yield np.random.choice(d, 1, False, d_f)[0]
 
+# 开关度分布
 def switch_distribution_func(i, a, k):
     while True:
         if i <= a * k:
@@ -121,7 +126,7 @@ def switch_distribution_func(i, a, k):
             yield robust_soliton(k)
 
 
-# 度分布函数选出度值后随机选码块
+'''通过度分布函数随机选出度值d，然后随机选择d个码块'''
 def randChunkNums(num_chunks):
     '''
     size 是每次选取的度数，这里选取的是一个度函数，size 分布是
@@ -167,7 +172,7 @@ class Droplet:
         self.func_id = func_id
         self.feedback_idx = feedback_idx # 反馈时此编码包编码时的进度，用于和接收端同步，译码才能正确
 
-    # 下面两个用于接收端恢复出这个块是由哪些块异或出来的
+    # 用于接收端恢复出当前编码包是由哪些块异或出来的（seed保证收发端随机出的块相同）
     def robust_chunkNums(self):
         random.seed(self.seed)
         np.random.seed(self.seed)
@@ -183,12 +188,12 @@ class Droplet:
         np.random.seed(self.seed)
         return mfixed_degree_randChunkNums(self.num_chunks)
 
-    # 发送用
+    # 发送时使用（序列化）
     def toBytes(self):
         '''
         使用一个字节存储chunks_size,
-        num_chunks int 度数，一个字节                                  2个字节
-        seed 随机数种子，两个字节                                       4个字节
+        num_chunks int 度数，2个字节                                 
+        seed 随机数种子，4个字节
         返回的结构是一个字节加后面跟着2 * n 个字节，后续跟着数据
         '''
         num_chunks_bits = format(int(self.num_chunks), "016b")
@@ -200,7 +205,7 @@ class Droplet:
         return bitarray.bitarray(num_chunks_bits + seed_bits + func_id_bits + feedback_idx_bits).tobytes() + self.data
 
 
-
+'''喷泉码发送'''
 class Fountain(object):
     # 继承了object对象，拥有了好多可操作对象，这些都是类中的高级特性。python 3 中已经默认加载了object
     def __init__(self, data, chunk_size, seed=None):
@@ -214,8 +219,8 @@ class Fountain(object):
         self.chunk_process = []
         random.seed(seed)
         np.random.seed(seed)
-        self.func_id = 0 # 度分布函数：0(RSD，默认)，1(度一分布)，2(改进固定度分布)
-        self.feedback_idx = 0 # 反馈时此编码包编码时的进度，用于和接收端同步，译码才能正确。只有当func_id为1时，才有意义。
+        self.func_id = 0        # 度分布函数：0(RSD，默认)，1(度一分布)，2(改进固定度分布)
+        self.feedback_idx = 0   # 反馈时此编码包编码时的进度，用于和接收端同步，译码才能正确。只有当func_id为1时，才有意义。
         self.show_info()
 
     def show_info(self):
@@ -226,7 +231,7 @@ class Fountain(object):
 
     def droplet(self):
         self.updateSeed()
-
+        # 这里判断是否收到了反馈，进行度分布函数切换
         if not self.all_at_once:
             self.chunk_selected = robust_randChunkNums(self.num_chunks)
         else:
@@ -255,14 +260,14 @@ class Fountain(object):
         np.random.seed(self.seed)
 
 
-
+'''扩展窗喷泉码发送(继承自Fountain类)'''
 class EW_Fountain(Fountain):
     ''' 扩展窗喷泉码 '''
     def __init__(self, data, chunk_size, ew_process=[], seed=None, w1_size=0.6, w1_pro=0.6):
         Fountain.__init__(self, data, chunk_size=chunk_size, seed=None)
         logging.info("-----------------EW_Fountain------------")
-        self.w1_p = w1_size
-        self.w1_pro = w1_pro
+        self.w1_p = w1_size     # w1大小
+        self.w1_pro = w1_pro    # w1选中概率
         self.windows_id_gen = self.windows_selection()
         self.w1_size = int(round(self.num_chunks * self.w1_p))
         self.w2_size = self.num_chunks
@@ -278,10 +283,10 @@ class EW_Fountain(Fountain):
     def droplet(self):
         self.updateSeed()
         if not self.all_at_once:
-            self.chunk_selected = self.EW_robust_RandChunkNums(self.num_chunks)
+            self.chunk_selected = self.EW_robust_RandChunkNums(self.num_chunks) # 收到反馈前
         else:
             self.func_id = 1
-            self.chunk_selected = self.EW_all_at_once_RandChunkNums()
+            self.chunk_selected = self.EW_all_at_once_RandChunkNums()           # 收到反馈后
 
         data = None
         for num in self.chunk_selected:
@@ -344,7 +349,7 @@ class EW_Droplet(Droplet):
         return self.ower.EW_all_at_once_RandChunkNums()
 
 
-
+'''接收'''
 class Glass:
     '''接收水滴：与或计算后的数据，'''
     def __init__(self, num_chunks):
@@ -368,6 +373,7 @@ class Glass:
         logging.info('recv chunk_list : {}'.format(entry[0]))
         self.updateEntry(entry)
 
+    # 反序列化
     def droplet_from_Bytes(self, d_bytes):
         byte_factory = bitarray.bitarray(endian='big')
         byte_factory.frombytes(d_bytes[0:2])
@@ -404,34 +410,27 @@ class Glass:
         #  entry[1] 是喷泉码选中的符号 xor 后的结果
         #  chunk 是解码后的结果
         '''
-        #  下面的 for 用于更新 entry 中的水滴，若水滴中包含已解码的码块，则将该部分去除
-        #  执行结果是 entry 中的水滴不包含已解码的码块，度会减少或不变
+        #  下面的 for 用于更新 entry 中的水滴，若水滴中包含已解码的码块，则将该部分去除。执行结果是 entry 中的水滴不包含已解码的码块，度会减少或不变
         for chunk_num in entry[0]:
             if self.chunks[chunk_num] is not None:
-
-                # str1 = str(entry[1])
-                # str2 = str(self.chunks[chunk_num])                               ### xor str
-                # entry[1] = xor(str1, str2)
-
                 entry[1] = x_o_r(entry[1], self.chunks[chunk_num])
                 entry[0].remove(chunk_num)
-        #  若度为 1,则说明该度的码块已经被解码出来，更新 chunk 后继续进行entry 中的其他
-        #  元素的更新
+        #  若度为 1,则说明该度的码块已经被解码出来，更新 chunk 后继续进行entry 中的其他元素的更新
         if len(entry[0]) == 1:
             self.chunks[entry[0][0]] = entry[1]
             self.entries.remove(entry)
             for former_entry in self.entries:
                 if entry[0][0] in former_entry[0]:
                     self.updateEntry(former_entry)
-                    
+
+    # 译码完成后将接收数据转为string     
     def getString(self):
         return ''.join(x.decode() or ' _ ' for x in self.chunks)
 
+    # 译码完成后将接收数据转为bits
     def get_bits(self):
         current_bits = ''
         bitarray_factory = bitarray.bitarray(endian='big')
-        # logging.info('current chunks')
-        # logging.info([ii if ii == None else '++++' for ii in self.chunks])
 
         for chunk in self.chunks:
             if chunk == None:
@@ -453,9 +452,11 @@ class Glass:
                 tmp = bitarray_factory.frombytes(chunk)
         return bitarray_factory
 
+    # 判断是否已经译码完成
     def isDone(self):
         return (None not in self.chunks) and (len(self.chunks) != 0) 
 
+    # 判断w1是否已经译码完成
     def is_w1_done(self, w1_size):
         if None not in self.chunks[:int(round(self.num_chunks * w1_size))]:
             if self.w1_done == False:
@@ -472,7 +473,7 @@ class Glass:
                 count+=1
         return count
     
-    # 返回未译出码块
+    # 返回未译出码块，用于反馈进度
     def getProcess(self):
         idx = 0
         process = []
@@ -490,37 +491,4 @@ class Glass:
 
 
 if __name__ == "__main__":
-    # nextid = format(int(1), "08b")
-    # w1size = format(int(6), "08b")
-    # imgW = format(int(256), "016b")
-    # imgH = format(int(256), "016b")
-    # SPIHTlen = format(int(24600), "032b")
-    # level = format(int(3), "08b")
-    # wavelet = format(int(1), "08b")
-    # mode = format(int(1), "08b")
-
-    # byte = bitarray.bitarray(nextid + w1size + imgW+ imgH+ SPIHTlen+ level+ wavelet+ mode).tobytes()
-    # print(byte)
-
-    # byte_factory = bitarray.bitarray(endian='big')
-    # byte_factory.frombytes(byte[0:1])
-    # nextids = int(byte_factory.to01(), base=2)
-
-    # byte_factory1 = bitarray.bitarray(endian='big')
-    # byte_factory1.frombytes(byte[1:2])
-    # w1sizes = int(byte_factory1.to01(), base=2)
-
-    # byte_factory3 = bitarray.bitarray(endian='big')
-    # byte_factory3.frombytes(byte[2:4])
-    # imgWs = int(byte_factory3.to01(), base=2)
-
-    # byte_factory4 = bitarray.bitarray(endian='big')
-    # byte_factory4.frombytes(byte[4:6])
-    # imgHs = int(byte_factory4.to01(), base=2)
-
-    # byte_factory5 = bitarray.bitarray(endian='big')
-    # byte_factory5.frombytes(byte[6:10])
-    # SPIHTlens = int(byte_factory5.to01(), base=2)
-
-    # print(nextids,w1sizes,imgWs,imgHs,SPIHTlens)
     pass
